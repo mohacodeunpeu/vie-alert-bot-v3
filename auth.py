@@ -21,7 +21,7 @@ TOKEN_CACHE = Path("token_cache.json")
 _REFRESH_URL = (
     "https://france365B2C.b2clogin.com"
     "/france365B2C.onmicrosoft.com"
-    "/B2C_1A_SIGNUP_SIGNIN"
+    "/B2C_1A_signup_signin"
     "/oauth2/v2.0/token"
 )
 _CLIENT_ID = "cbba759f-45bc-4c21-bd77-533388735d6a"
