@@ -1,0 +1,13 @@
+# Token — NE PAS pousser sur GitHub (contient tes credentials)
+token_cache.json
+
+# Logs et données runtime
+bot.log
+bot.log.*
+seen_offers.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
