@@ -73,6 +73,7 @@ def run() -> None:
     timestamps: dict = {k: "" for k in seen_ids}
     logger.info("[SEEN] %d IDs déjà connus", len(seen_ids))
 
+    first_run = len(seen_ids) == 0
     cycle = 0
 
     while True:
@@ -86,6 +87,28 @@ def run() -> None:
 
             logger.info("[CYCLE #%d] %d offres recuperees, %d nouvelles",
                         cycle, len(offers), len(new_offers))
+
+            # Premier demarrage : marquer tout comme vu sans envoyer sur Discord
+            if first_run and new_offers:
+                for offer in new_offers:
+                    cid = offer["composite_id"]
+                    seen_ids.add(cid)
+                    timestamps[cid] = "init"
+                save_seen(seen_ids, timestamps)
+                logger.info("[CYCLE #%d] Premier demarrage — %d offres existantes marquees (pas de spam)",
+                            cycle, len(new_offers))
+                first_run = False
+                elapsed = round(time.time() - t0, 1)
+                logger.info("[CYCLE #%d] Termine en %ss | Init silencieuse | Total vus: %d",
+                            cycle, elapsed, len(seen_ids))
+                wait = random.uniform(config.MIN_INTERVAL, config.MAX_INTERVAL)
+                logger.info("[CYCLE #%d] Prochain cycle dans %.0fs", cycle, wait)
+                try:
+                    time.sleep(wait)
+                except KeyboardInterrupt:
+                    logger.info("Arret demande")
+                    break
+                continue
 
             sent = 0
             for offer in new_offers:
