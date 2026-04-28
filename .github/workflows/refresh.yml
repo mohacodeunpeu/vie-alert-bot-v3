@@ -2,12 +2,13 @@ name: Refresh VIE Token
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # toutes les 30 minutes
-  workflow_dispatch:         # bouton "Run workflow" manuel
+    - cron: '*/50 * * * *'   # toutes les 50 minutes (token valide 1h)
+  workflow_dispatch:           # bouton "Run workflow" manuel
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -15,11 +16,27 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install requests
-        run: pip install requests
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests playwright
+          python -m playwright install --with-deps chromium
 
-      - name: Refresh token + update Railway
+      - name: Login + extract tokens + push to Railway
         env:
-          REFRESH_TOKEN: ${{ secrets.VIE_REFRESH_TOKEN }}
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: python refresh_token.py
+          MS_EMAIL:           ${{ secrets.MS_EMAIL }}
+          MS_PASSWORD:        ${{ secrets.MS_PASSWORD }}
+          GMAIL_ADDRESS:      ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RAILWAY_TOKEN:      ${{ secrets.RAILWAY_TOKEN }}
+        run: python playwright_login.py
+
+      - name: Upload screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: |
+            *.png
+            *.html
+          if-no-files-found: ignore
