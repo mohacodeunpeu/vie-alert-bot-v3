@@ -70,7 +70,13 @@ def _refresh(refresh_token: str) -> dict | None:
                 "refresh_token": refresh_token,
                 "scope":         _SCOPE,
             },
-            timeout=15,
+            headers={
+                "Origin":     "https://mon-vie-via.businessfrance.fr",
+                "Referer":    "https://mon-vie-via.businessfrance.fr/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/147.0.0.0 Safari/537.36",
+                "Accept":     "application/json",
+            },
+            timeout=30,
         )
         if resp.status_code == 200:
             return resp.json()
