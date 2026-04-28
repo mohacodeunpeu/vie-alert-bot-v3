@@ -115,53 +115,42 @@ def _parse_civiweb(raw: dict) -> Optional[dict]:
 # ── Stratégie 1 : API civiweb (POST) ────────────────────────────────────────────
 
 def _fetch_civiweb() -> list[dict]:
+    """Recupere TOUTES les offres en une seule requete (limit eleve)."""
     all_offers: list[dict] = []
     seen: set[str]          = set()
 
-    for page in range(config.MAX_PAGES):
-        body = {"page": page, "limit": 100}
-        try:
-            resp = requests.post(CIVIWEB_API, json=body, headers=_headers(with_json=True), timeout=10)
-        except requests.RequestException as e:
-            logger.warning("[CIVIWEB] Erreur requete page %d: %s", page, e)
-            break
+    body = {"page": 0, "limit": 1000}
+    try:
+        resp = requests.post(CIVIWEB_API, json=body, headers=_headers(with_json=True), timeout=15)
+    except requests.RequestException as e:
+        logger.warning("[CIVIWEB] Erreur requete: %s", e)
+        return []
 
-        logger.info("[CIVIWEB] Page %d -> HTTP %d", page, resp.status_code)
+    logger.info("[CIVIWEB] HTTP %d", resp.status_code)
 
-        if resp.status_code == 401:
-            logger.error("[CIVIWEB] Token invalide ou expire — relance login.py")
-            break
-        if resp.status_code != 200:
-            logger.warning("[CIVIWEB] HTTP %d inattendu", resp.status_code)
-            break
+    if resp.status_code == 401:
+        logger.error("[CIVIWEB] Token invalide ou expire")
+        return []
+    if resp.status_code != 200:
+        logger.warning("[CIVIWEB] HTTP %d inattendu: %s", resp.status_code, resp.text[:200])
+        return []
 
-        try:
-            data = resp.json()
-        except ValueError:
-            logger.error("[CIVIWEB] Reponse non-JSON")
-            break
+    try:
+        data = resp.json()
+    except ValueError:
+        logger.error("[CIVIWEB] Reponse non-JSON")
+        return []
 
-        items       = data.get("result") or data.get("results") or []
-        total_count = int(data.get("count") or 0)
+    items       = data.get("result") or data.get("results") or []
+    total_count = int(data.get("count") or 0)
 
-        if not items:
-            logger.info("[CIVIWEB] Page %d vide, fin pagination", page)
-            break
+    for raw in items:
+        offer = _parse_civiweb(raw)
+        if offer and offer["composite_id"] not in seen:
+            seen.add(offer["composite_id"])
+            all_offers.append(offer)
 
-        parsed = 0
-        for raw in items:
-            offer = _parse_civiweb(raw)
-            if offer and offer["composite_id"] not in seen:
-                seen.add(offer["composite_id"])
-                all_offers.append(offer)
-                parsed += 1
-
-        logger.info("[CIVIWEB] Page %d: %d offres (total: %d)", page, parsed, total_count)
-
-        if len(items) < 100 or len(all_offers) >= total_count:
-            break
-        time.sleep(0.3)
-
+    logger.info("[CIVIWEB] %d offres parsees (total annonce: %d)", len(all_offers), total_count)
     return all_offers
 
 

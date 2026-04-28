@@ -72,7 +72,8 @@ def run() -> None:
                 "ACTIVE" if AUTO_APPLY_ENABLED else "DESACTIVEE")
     logger.info("=" * 55)
 
-    discord_notif.send_startup()
+    # Pas de spam Discord a chaque restart Railway — on log seulement
+    logger.info("[DISCORD] Demarrage silencieux (pas de notif)")
 
     seen_ids: set    = load_seen()
     timestamps: dict = {k: "" for k in seen_ids}
@@ -155,5 +156,18 @@ def _wait_next(cycle: int) -> None:
         raise
 
 
+def main():
+    """Wrapper qui relance run() en cas de crash inattendu."""
+    while True:
+        try:
+            run()
+            break  # Sortie propre
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            logger.error("[FATAL] Crash inattendu: %s — relance dans 30s", e, exc_info=True)
+            time.sleep(30)
+
+
 if __name__ == "__main__":
-    run()
+    main()
