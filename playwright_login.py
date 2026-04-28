@@ -222,10 +222,14 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
         print("[PW] Clic sur Se connecter...")
         page.click("#next")
 
-        # Etape 2 : page de verification email — cliquer "Envoyer le code"
-        print("[PW] Attente bouton 'Envoyer le code de verification'...")
-        time.sleep(3)
+        # Attendre la nouvelle page (verification email) — networkidle = toutes les requetes AJAX terminees
+        try:
+            page.wait_for_load_state("networkidle", timeout=20000)
+        except Exception:
+            pass
+        time.sleep(2)
         snap("05_after_signin")
+        print("[PW] Attente bouton 'Envoyer le code de verification'...")
 
         send_code_selectors = [
             '#emailVerificationControl_but_send_code',
@@ -308,24 +312,55 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
             except Exception:
                 continue
 
-        # CRITIQUE : attendre que la verification cote serveur soit terminee
-        # Indicateur fiable : le bouton "Verifier le code" disparait apres succes
+        # CRITIQUE : attendre que la verification cote SERVEUR soit terminee
+        # 1. wait_for_load_state("networkidle") = toutes les requetes AJAX terminees
+        # 2. Chercher l'indicateur de SUCCES SERVEUR (apparait UNIQUEMENT apres validation OK)
         if verify_clicked:
-            print("[PW] Attente confirmation de la verification (max 20s)...")
-            for i in range(40):  # 20s
-                time.sleep(0.5)
-                still_visible = False
-                for sel in verify_selectors:
+            print("[PW] Attente reponse serveur (networkidle)...")
+            try:
+                page.wait_for_load_state("networkidle", timeout=20000)
+            except Exception:
+                pass
+            time.sleep(3)  # buffer pour que la SPA mette a jour son etat interne
+
+            # Chercher l'indicateur explicite de succes
+            print("[PW] Recherche de l'indicateur de succes...")
+            success_selectors = [
+                '#emailVerificationControl_but_change_claims',  # bouton "Modifier l'adresse e-mail"
+                'button:has-text("Modifier l")',
+                'text=/.*vérifié.*/i',
+                'text=/.*verified.*/i',
+                '[id*="change_claims"]',
+            ]
+            success_detected = False
+            for sel in success_selectors:
+                try:
+                    if page.locator(sel).first.is_visible(timeout=2000):
+                        print(f"[PW] OK Verification confirmee par serveur via : {sel}")
+                        success_detected = True
+                        break
+                except Exception:
+                    continue
+
+            # Si pas de succes detecte, chercher un message d'erreur
+            if not success_detected:
+                print("[PW] WARN: pas d'indicateur de succes trouve, scan des erreurs...")
+                error_selectors = [
+                    '#emailVerificationControl_error_message',
+                    '[id*="error"]:visible',
+                    '.error:visible',
+                    '[role="alert"]:visible',
+                ]
+                for sel in error_selectors:
                     try:
-                        if page.locator(sel).first.is_visible(timeout=200):
-                            still_visible = True
-                            break
+                        el = page.locator(sel).first
+                        if el.is_visible(timeout=1000):
+                            err_text = el.inner_text()[:200]
+                            print(f"[PW] ERREUR detectee ({sel}): {err_text}")
                     except Exception:
                         continue
-                if not still_visible:
-                    print(f"[PW] Verification confirmee apres {(i+1)*0.5}s")
-                    break
-            time.sleep(2)  # buffer supplementaire
+                # On continue quand meme — Continuer va peut-etre marcher
+                time.sleep(3)
         snap("07c_after_verify")
 
         # Etape 6 : cliquer "Continuer"
@@ -366,6 +401,15 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
                 except Exception:
                     continue
 
+        # Attendre que B2C traite la soumission (redirect 302 vers mon-vie-via)
+        print("[PW] Attente reponse B2C apres Continuer (networkidle)...")
+        try:
+            page.wait_for_load_state("networkidle", timeout=30000)
+        except Exception:
+            pass
+        time.sleep(3)
+        snap("09_after_continue")
+
         # Etape 7 : attendre que les tokens apparaissent dans localStorage
         # (plus fiable que de checker l'URL — gere les redirects bizarres genre ?method=null)
         print("[PW] Attente apparition des tokens dans localStorage (max 90s)...")
@@ -405,12 +449,24 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
             snap("09_no_tokens")
             dump_html("09_no_tokens")
             print(f"[PW] ECHEC : pas de tokens apres 90s. URL finale: {page.url}")
-            # Dump localStorage keys pour diagnostic
+            # Dump localStorage avec valeurs tronquees pour diagnostic
             try:
-                keys = page.evaluate("() => Object.keys(localStorage)")
-                print(f"[PW] Cles localStorage disponibles: {keys}")
-            except Exception:
-                pass
+                dump = page.evaluate("""
+                    () => {
+                        const out = {};
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const k = localStorage.key(i);
+                            const v = localStorage.getItem(k) || "";
+                            out[k] = v.length > 80 ? v.slice(0, 80) + "..." + "(" + v.length + " chars)" : v;
+                        }
+                        return out;
+                    }
+                """)
+                print("[PW] Contenu localStorage :")
+                for k, v in dump.items():
+                    print(f"  {k} = {v}")
+            except Exception as e:
+                print(f"[PW] dump localStorage failed: {e}")
             sys.exit(1)
 
         time.sleep(2)  # buffer pour s'assurer que tout est ecrit
@@ -437,11 +493,18 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
             kl = k.lower()
             if "token" in kl and "refresh" in kl and "azure" in kl:
                 refresh_token = v.strip('"')
-            elif "_token" in kl and "azure" in kl and "refresh" not in kl:
+            elif "_token" in kl and "azure" in kl and "refresh" not in kl and "expir" not in kl:
                 access_token = v.strip('"')
-            elif "expires" in kl and "azure" in kl:
+            elif "expir" in kl and "azure" in kl and "redirect" not in kl:
                 # Format ISO ou timestamp
                 expires_at = v.strip('"')
+
+        # CRITIQUE : la SPA stocke "Bearer eyJ..." dans localStorage
+        # Le bot Railway prefixe deja "Bearer ", donc on enleve le prefix ici
+        if access_token and access_token.startswith("Bearer "):
+            access_token = access_token[7:]
+        if refresh_token and refresh_token.startswith("Bearer "):
+            refresh_token = refresh_token[7:]
 
         browser.close()
 
