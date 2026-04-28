@@ -296,19 +296,40 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
             '[id*="verify_code"]',
             'button.verifyButton',
         ]
+        verify_clicked = False
         for sel in verify_selectors:
             try:
                 btn = page.locator(sel).first
                 if btn.is_visible(timeout=3000):
                     btn.click()
+                    verify_clicked = True
                     print(f"[PW] Code verifie via : {sel}")
                     break
             except Exception:
                 continue
 
+        # CRITIQUE : attendre que la verification cote serveur soit terminee
+        # Indicateur fiable : le bouton "Verifier le code" disparait apres succes
+        if verify_clicked:
+            print("[PW] Attente confirmation de la verification (max 20s)...")
+            for i in range(40):  # 20s
+                time.sleep(0.5)
+                still_visible = False
+                for sel in verify_selectors:
+                    try:
+                        if page.locator(sel).first.is_visible(timeout=200):
+                            still_visible = True
+                            break
+                    except Exception:
+                        continue
+                if not still_visible:
+                    print(f"[PW] Verification confirmee apres {(i+1)*0.5}s")
+                    break
+            time.sleep(2)  # buffer supplementaire
+        snap("07c_after_verify")
+
         # Etape 6 : cliquer "Continuer"
         print("[PW] Clic sur Continuer...")
-        time.sleep(2)
         snap("08_before_continuer")
         continue_selectors = [
             '#continue',
@@ -316,40 +337,83 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
             'button[type="submit"]:has-text("Continuer")',
             'input[type="submit"][value*="ontinuer"]',
         ]
+        # Attendre que Continuer soit cliquable (peut etre disabled au depart)
         continue_clicked = False
-        for sel in continue_selectors:
-            try:
-                btn = page.locator(sel).first
-                if btn.is_visible(timeout=3000):
-                    btn.click()
-                    print(f"[PW] Continuer clique via : {sel}")
-                    continue_clicked = True
-                    break
-            except Exception:
-                continue
+        for attempt in range(20):  # 10s pour qu'il soit enabled
+            for sel in continue_selectors:
+                try:
+                    btn = page.locator(sel).first
+                    if btn.is_visible(timeout=300) and btn.is_enabled():
+                        btn.click()
+                        print(f"[PW] Continuer clique via : {sel} (tentative {attempt+1})")
+                        continue_clicked = True
+                        break
+                except Exception:
+                    continue
+            if continue_clicked:
+                break
+            time.sleep(0.5)
 
         if not continue_clicked:
             snap("08b_no_continue")
             dump_html("08b_no_continue")
-            print("[PW] WARN : bouton Continuer non trouve, on attend la redirection quand meme")
+            print("[PW] WARN : bouton Continuer non trouve/disabled — tentative click forcee")
+            for sel in continue_selectors:
+                try:
+                    page.locator(sel).first.click(timeout=3000, force=True)
+                    continue_clicked = True
+                    break
+                except Exception:
+                    continue
 
-        # Etape 7 : attendre la redirection vers mon-vie-via
-        print("[PW] Attente redirection vers le site VIE...")
-        deadline = time.time() + 60
+        # Etape 7 : attendre que les tokens apparaissent dans localStorage
+        # (plus fiable que de checker l'URL — gere les redirects bizarres genre ?method=null)
+        print("[PW] Attente apparition des tokens dans localStorage (max 90s)...")
+        tokens_found = False
+        deadline = time.time() + 90
+        last_url_logged = ""
         while time.time() < deadline:
-            if "mon-vie-via.businessfrance.fr" in page.url and "b2clogin.com" not in page.url:
-                break
+            try:
+                if page.url != last_url_logged:
+                    print(f"[PW] URL: {page.url}")
+                    last_url_logged = page.url
+
+                # Une fois qu'on a quitte b2clogin.com on essaie d'extraire les tokens
+                if "b2clogin.com" not in page.url:
+                    has_token = page.evaluate("""
+                        () => {
+                            for (let i = 0; i < localStorage.length; i++) {
+                                const k = localStorage.key(i);
+                                const kl = k.toLowerCase();
+                                if (kl.includes('token') && kl.includes('azure') && !kl.includes('refresh')) {
+                                    const v = localStorage.getItem(k);
+                                    if (v && v.length > 100) return true;
+                                }
+                            }
+                            return false;
+                        }
+                    """)
+                    if has_token:
+                        tokens_found = True
+                        print("[PW] Tokens detectes dans localStorage !")
+                        break
+            except Exception as e:
+                print(f"[PW] (poll): {e}")
             time.sleep(1)
-        else:
-            snap("09_no_redirect_back")
-            print(f"[PW] ECHEC : pas redirige vers mon-vie-via. URL: {page.url}")
+
+        if not tokens_found:
+            snap("09_no_tokens")
+            dump_html("09_no_tokens")
+            print(f"[PW] ECHEC : pas de tokens apres 90s. URL finale: {page.url}")
+            # Dump localStorage keys pour diagnostic
+            try:
+                keys = page.evaluate("() => Object.keys(localStorage)")
+                print(f"[PW] Cles localStorage disponibles: {keys}")
+            except Exception:
+                pass
             sys.exit(1)
 
-        try:
-            page.wait_for_load_state("networkidle", timeout=30000)
-        except Exception:
-            pass
-        time.sleep(4)  # laisser le JS stocker les tokens dans localStorage
+        time.sleep(2)  # buffer pour s'assurer que tout est ecrit
         snap("10_back_on_site")
 
         # Etape 7 : extraire les tokens depuis localStorage
