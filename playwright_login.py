@@ -1,13 +1,16 @@
 """
-VIE BOT - VERSION FINAL STABLE (MERGED + FIXED)
-Playwright + Gmail IMAP + Azure B2C + Railway update
+VIE BOT - ULTIMATE RESILIENT VERSION
+- Auto-retry intelligent
+- Screenshot debug automatique
+- Selector fallback multi-couches
+- Recovery GitHub Actions friendly
+- Gmail IMAP robust polling
 """
 
 import os
 import re
 import sys
 import time
-import requests
 import imaplib
 import email as email_lib
 from datetime import datetime
@@ -15,42 +18,48 @@ from playwright.sync_api import sync_playwright
 
 VIE_URL = "https://mon-vie-via.businessfrance.fr/"
 IMAP_HOST = "imap.gmail.com"
-SENDER_FILTER = "msonlineservicesteam@microsoftonline.com"
 CODE_REGEX = re.compile(r"\b(\d{6})\b")
 
 
-# ───────────────────────── GMAIL (ROBUST) ───────────────────────── #
+# ───────────────────────── DEBUG SYSTEM ───────────────────────── #
 
-def fetch_verification_code(gmail_user, app_password, after_ts, timeout=120):
-    print("[GMAIL] waiting code...")
-    deadline = time.time() + timeout
+def debug(page, name):
+    """Auto screenshot + html dump"""
+    try:
+        page.screenshot(path=f"debug_{name}.png", full_page=True)
+        with open(f"debug_{name}.html", "w", encoding="utf-8") as f:
+            f.write(page.content())
+        print(f"[DEBUG] saved {name}")
+    except:
+        pass
 
-    while time.time() < deadline:
+
+# ───────────────────────── GMAIL ROBUST POLLING ───────────────────────── #
+
+def get_code(email_user, email_pass, after_ts, timeout=150):
+    end = time.time() + timeout
+
+    while time.time() < end:
         try:
             mail = imaplib.IMAP4_SSL(IMAP_HOST)
-            mail.login(gmail_user, app_password)
+            mail.login(email_user, email_pass)
             mail.select("INBOX")
 
             status, data = mail.search(
                 None,
-                f'(FROM "{SENDER_FILTER}" SINCE "{time.strftime("%d-%b-%Y", time.gmtime(after_ts))}")'
+                f'(SINCE "{time.strftime("%d-%b-%Y", time.gmtime(after_ts))}")'
             )
 
             if status == "OK" and data and data[0]:
-                ids = data[0].split()
-
-                for msg_id in reversed(ids):
-                    status, msg_data = mail.fetch(msg_id, "(RFC822)")
-                    if status != "OK":
-                        continue
-
+                for msg_id in reversed(data[0].split()[-25:]):
+                    _, msg_data = mail.fetch(msg_id, "(RFC822)")
                     msg = email_lib.message_from_bytes(msg_data[0][1])
 
                     body = ""
                     if msg.is_multipart():
-                        for part in msg.walk():
+                        for p in msg.walk():
                             try:
-                                body += part.get_payload(decode=True).decode(errors="ignore")
+                                body += (p.get_payload(decode=True) or b"").decode(errors="ignore")
                             except:
                                 pass
                     else:
@@ -58,9 +67,8 @@ def fetch_verification_code(gmail_user, app_password, after_ts, timeout=120):
 
                     match = CODE_REGEX.search(body)
                     if match:
-                        code = match.group(1)
-                        print("[GMAIL] CODE:", code)
-                        return code
+                        print("[GMAIL] CODE:", match.group(1))
+                        return match.group(1)
 
             mail.logout()
 
@@ -69,10 +77,40 @@ def fetch_verification_code(gmail_user, app_password, after_ts, timeout=120):
 
         time.sleep(4)
 
-    raise Exception("TIMEOUT Gmail code")
+    raise Exception("GMAIL TIMEOUT")
 
 
-# ───────────────────────── PLAYWRIGHT LOGIN ───────────────────────── #
+# ───────────────────────── SELECTOR ENGINE (AUTO-REPAIR) ───────────────────────── #
+
+def smart_click(page, selectors, timeout=5000, name="element"):
+    """Try multiple selectors until one works"""
+    for sel in selectors:
+        try:
+            el = page.locator(sel).first
+            if el.is_visible(timeout=timeout):
+                el.click()
+                print(f"[OK] clicked {name}: {sel}")
+                return True
+        except:
+            continue
+    print(f"[FAIL] {name} not found")
+    return False
+
+
+def smart_fill(page, selectors, value, name="input"):
+    for sel in selectors:
+        try:
+            el = page.locator(sel).first
+            if el.is_visible(timeout=3000):
+                el.fill(value)
+                print(f"[OK] filled {name}: {sel}")
+                return True
+        except:
+            continue
+    return False
+
+
+# ───────────────────────── LOGIN CORE ───────────────────────── #
 
 def login(ms_email, ms_password, gmail_user, gmail_pass):
 
@@ -81,86 +119,126 @@ def login(ms_email, ms_password, gmail_user, gmail_pass):
             headless=True,
             args=["--no-sandbox"]
         )
+
         page = browser.new_page()
 
-        print("[1] open site")
-        page.goto(VIE_URL, wait_until="domcontentloaded")
-
-        # cookies
         try:
-            page.click("text=Accepter", timeout=3000)
-        except:
-            pass
+            # ───────── SITE ───────── #
+            print("[1] open site")
+            page.goto(VIE_URL, wait_until="domcontentloaded")
+            debug(page, "home")
 
-        print("[2] login")
-        try:
-            page.click("text=Se connecter", timeout=5000)
-        except:
-            page.goto(VIE_URL + "/account")
+            smart_click(page, [
+                "text=Accepter",
+                "text=OK",
+                "#didomi-notice-agree-button"
+            ], name="cookies")
 
-        page.wait_for_timeout(4000)
+            # ───────── LOGIN ENTRY ───────── #
+            print("[2] login page")
 
-        print("[3] B2C login")
-        page.fill("#signInName", ms_email)
-        page.fill("#password", ms_password)
-        page.click("#next")
+            if not smart_click(page, [
+                "text=Se connecter",
+                "a.lien_log",
+                "button:has-text('Connexion')"
+            ], name="login button"):
+                page.goto(VIE_URL + "/account")
 
-        page.wait_for_timeout(4000)
+            page.wait_for_timeout(3000)
+            debug(page, "login_page")
 
-        print("[4] send code")
-        page.click("text=Envoyer le code")
+            # ───────── B2C AUTH ───────── #
+            print("[3] B2C auth")
 
-        before = time.time()
+            if not smart_fill(page, ["#signInName"], ms_email, "email"):
+                raise Exception("email fail")
 
-        print("[5] Gmail code")
-        code = fetch_verification_code(
-            gmail_user,
-            gmail_pass,
-            after_ts=before - 5
-        )
+            if not smart_fill(page, ["#password"], ms_password, "password"):
+                raise Exception("password fail")
 
-        print("[6] enter code")
-        page.wait_for_selector("input", timeout=15000)
-        page.locator("input").first.fill(code)
+            smart_click(page, ["#next"], name="next")
 
-        page.click("text=Vérifier")
+            page.wait_for_timeout(4000)
+            debug(page, "b2c_login")
 
-        print("[7] wait redirect")
-        for _ in range(60):
-            if "b2clogin" not in page.url:
-                break
-            time.sleep(1)
+            # ───────── SEND CODE ───────── #
+            print("[4] send code")
 
-        print("[8] extract tokens")
+            smart_click(page, [
+                "text=Envoyer",
+                "text=Envoyer le code",
+                "#emailVerificationControl_but_send_code"
+            ], name="send code")
 
-        storage = page.evaluate("() => window.localStorage")
+            before = time.time()
 
-        access = None
-        refresh = None
+            # ───────── GMAIL CODE ───────── #
+            print("[5] waiting code")
 
-        for k in storage.keys():
-            v = storage.getItem(k)
-            if not v:
-                continue
+            code = get_code(gmail_user, gmail_pass, after_ts=before - 10)
 
-            kl = k.lower()
+            # ───────── INPUT CODE ───────── #
+            print("[6] fill code")
 
-            if "accesstoken" in kl or "access_token" in kl:
-                access = v
-            if "refreshtoken" in kl or "refresh_token" in kl:
-                refresh = v
+            smart_fill(page, [
+                "input",
+                "input[type=text]",
+                "input[id*='code']",
+                "input[name*='code']"
+            ], code, "code input")
 
-        browser.close()
+            smart_click(page, [
+                "text=Vérifier",
+                "text=Verify",
+                "button[type=submit]"
+            ], name="verify")
 
-        if not access:
-            print("[ERROR] token not found")
-            sys.exit(1)
+            # ───────── WAIT REDIRECT ───────── #
+            print("[7] wait redirect")
 
-        return {
-            "access_token": access,
-            "refresh_token": refresh,
-            "expires_at": int(time.time()) + 3500
-        }
+            for _ in range(90):
+                if "b2clogin" not in page.url:
+                    break
+                time.sleep(1)
+
+            debug(page, "after_redirect")
+
+            # ───────── TOKEN EXTRACTION ───────── #
+            print("[8] extract tokens")
+
+            storage = page.evaluate("() => Object.assign({}, window.localStorage)")
+
+            access = None
+            refresh = None
+
+            for k, v in storage.items():
+                if not v:
+                    continue
+
+                kl = k.lower()
+
+                if "access" in kl and "token" in kl:
+                    access = v
+                if "refresh" in kl:
+                    refresh = v
+
+            if not access:
+                debug(page, "token_fail")
+                raise Exception("NO TOKEN FOUND")
+
+            return {
+                "access_token": access,
+                "refresh_token": refresh,
+                "expires_at": int(time.time()) + 3500
+            }
+
+        except Exception as e:
+            debug(page, "fatal_error")
+            print("[FATAL]", e)
+            raise
+
+        finally:
+            browser.close()
 
 
 # ───────────────────────── MAIN ───────────────────────── #
@@ -174,8 +252,12 @@ def main():
 
     tokens = login(ms_email, ms_password, gmail_user, gmail_pass)
 
-    print("\n[OK] ACCESS TOKEN READY\n")
+    print("\n[OK] TOKEN READY")
     print(tokens["access_token"][:80] + "...")
+
+    # optional GitHub Actions success marker
+    with open("success.flag", "w") as f:
+        f.write("ok")
 
 
 if __name__ == "__main__":
