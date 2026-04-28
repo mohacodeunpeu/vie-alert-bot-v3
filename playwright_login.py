@@ -193,69 +193,164 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
                 except Exception as e:
                     print(f"[PW] {protected} echec : {e}")
 
-        # Attendre la page B2C login (avec gestion d'erreur explicite)
+        # Attendre que l'URL contienne b2clogin.com (poll plus robuste qu'un glob)
         print("[PW] Attente page B2C...")
-        try:
-            page.wait_for_url("**/b2clogin.com/**", timeout=30000)
-        except Exception:
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            if "b2clogin.com" in page.url:
+                break
+            time.sleep(0.5)
+        else:
             snap("02_no_b2c_redirect")
             dump_html("02_no_b2c_redirect")
             print(f"[PW] ECHEC : pas redirige vers b2clogin. URL actuelle: {page.url}")
-            print(f"[PW] Title: {page.title()}")
             sys.exit(1)
 
         page.wait_for_load_state("domcontentloaded", timeout=15000)
-        time.sleep(2)
+        time.sleep(3)  # laisser le JS B2C s'initialiser
         snap("03_b2c_landing")
-        print("[PW] Page B2C atteinte")
+        print(f"[PW] Page B2C atteinte | Title: {page.title()}")
 
-        # Etape 1 : email + mot de passe
+        # Etape 1 : email + mot de passe (selecteurs exacts confirmes via HTML B2C)
         print("[PW] Saisie email + mdp...")
-        page.fill('input[type="email"]', ms_email, timeout=15000)
-        page.fill('input[type="password"]', ms_password, timeout=15000)
+        page.wait_for_selector("#signInName", timeout=15000)
+        page.fill("#signInName", ms_email)
+        page.fill("#password", ms_password)
+        snap("04_credentials_filled")
 
-        # Submit avec Enter (plus robuste que cliquer le bouton)
-        before_click = time.time()
-        page.press('input[type="password"]', "Enter")
+        # Cliquer le bouton "Se connecter" (id=next)
+        print("[PW] Clic sur Se connecter...")
+        page.click("#next")
 
-        # Etape 2 : cliquer "Envoyer le code de verification"
-        print("[PW] Attente du bouton 'Envoyer le code'...")
-        send_code_btn = page.get_by_role("button", name=re.compile(r"envoyer.*code", re.I))
-        send_code_btn.wait_for(state="visible", timeout=30000)
+        # Etape 2 : page de verification email — cliquer "Envoyer le code"
+        print("[PW] Attente bouton 'Envoyer le code de verification'...")
+        time.sleep(3)
+        snap("05_after_signin")
 
-        before_send = time.time()
-        send_code_btn.click()
-        print(f"[PW] Code envoye a {time.strftime('%H:%M:%S', time.gmtime(before_send))}")
+        send_code_selectors = [
+            '#emailVerificationControl_but_send_code',
+            '#emailVerificationControl_but_send_new_code',
+            'button:has-text("Envoyer le code de v")',
+            'button:has-text("Envoyer le code")',
+            '[id*="send_code"]',
+            'button.sendButton',
+        ]
+        before_send = None
+        for sel in send_code_selectors:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=3000):
+                    print(f"[PW] Bouton 'envoyer code' trouve : {sel}")
+                    before_send = time.time()
+                    btn.click()
+                    break
+            except Exception:
+                continue
+
+        if before_send is None:
+            snap("05b_no_send_button")
+            dump_html("05b_no_send_button")
+            print("[PW] ECHEC : bouton 'Envoyer le code' introuvable")
+            sys.exit(1)
+
+        print(f"[PW] Code demande a {time.strftime('%H:%M:%S', time.gmtime(before_send))}")
 
         # Etape 3 : recuperer le code depuis Gmail
         code = fetch_verification_code(gmail_user, gmail_password,
                                         after_ts=before_send - 10, timeout=120)
+        snap("06_after_gmail_fetch")
 
-        # Etape 4 : taper le code (le champ "Code de verification" apparait apres le clic)
+        # Etape 4 : taper le code dans le champ "Code de verification"
         print("[PW] Saisie du code...")
-        # Le champ s'appelle souvent verificationCode ou similaire
-        try:
-            page.fill('input[id*="erification"], input[name*="erification"], input[type="text"]:not([type="email"])',
-                      code, timeout=15000)
-        except Exception:
-            # Fallback : trouver le champ via label
-            page.get_by_label(re.compile(r"code", re.I)).first.fill(code, timeout=10000)
+        time.sleep(2)  # le champ peut apparaitre dynamiquement
+        code_selectors = [
+            '#emailVerificationCode',
+            'input[id*="erificationCode"]',
+            'input[id*="VerificationCode"]',
+            'input[name*="erificationCode"]',
+            'input[placeholder*="ode"]',
+        ]
+        code_filled = False
+        for sel in code_selectors:
+            try:
+                el = page.locator(sel).first
+                if el.is_visible(timeout=3000):
+                    el.fill(code)
+                    print(f"[PW] Code saisi dans : {sel}")
+                    code_filled = True
+                    break
+            except Exception:
+                continue
+        if not code_filled:
+            snap("06b_no_code_field")
+            dump_html("06b_no_code_field")
+            print("[PW] ECHEC : champ code introuvable")
+            sys.exit(1)
+        snap("07_code_filled")
 
-        # Cliquer "Verifier le code"
-        try:
-            page.get_by_role("button", name=re.compile(r"v[eé]rifier.*code", re.I)).first.click(timeout=10000)
-        except Exception:
-            print("[PW] Pas de bouton 'Verifier le code' — passe a Continuer")
+        # Etape 5 : cliquer "Verifier le code"
+        verify_selectors = [
+            '#emailVerificationControl_but_verify_code',
+            'button:has-text("Vérifier le code")',
+            'button:has-text("Verifier le code")',
+            '[id*="verify_code"]',
+            'button.verifyButton',
+        ]
+        for sel in verify_selectors:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=3000):
+                    btn.click()
+                    print(f"[PW] Code verifie via : {sel}")
+                    break
+            except Exception:
+                continue
 
-        # Etape 5 : cliquer "Continuer"
+        # Etape 6 : cliquer "Continuer"
         print("[PW] Clic sur Continuer...")
-        page.get_by_role("button", name=re.compile(r"continuer", re.I)).first.click(timeout=20000)
+        time.sleep(2)
+        snap("08_before_continuer")
+        continue_selectors = [
+            '#continue',
+            'button:has-text("Continuer")',
+            'button[type="submit"]:has-text("Continuer")',
+            'input[type="submit"][value*="ontinuer"]',
+        ]
+        continue_clicked = False
+        for sel in continue_selectors:
+            try:
+                btn = page.locator(sel).first
+                if btn.is_visible(timeout=3000):
+                    btn.click()
+                    print(f"[PW] Continuer clique via : {sel}")
+                    continue_clicked = True
+                    break
+            except Exception:
+                continue
 
-        # Etape 6 : attendre la redirection vers mon-vie-via
+        if not continue_clicked:
+            snap("08b_no_continue")
+            dump_html("08b_no_continue")
+            print("[PW] WARN : bouton Continuer non trouve, on attend la redirection quand meme")
+
+        # Etape 7 : attendre la redirection vers mon-vie-via
         print("[PW] Attente redirection vers le site VIE...")
-        page.wait_for_url("**mon-vie-via.businessfrance.fr/**", timeout=60000)
-        page.wait_for_load_state("networkidle", timeout=30000)
-        time.sleep(3)  # laisser le temps au JS de stocker les tokens
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            if "mon-vie-via.businessfrance.fr" in page.url and "b2clogin.com" not in page.url:
+                break
+            time.sleep(1)
+        else:
+            snap("09_no_redirect_back")
+            print(f"[PW] ECHEC : pas redirige vers mon-vie-via. URL: {page.url}")
+            sys.exit(1)
+
+        try:
+            page.wait_for_load_state("networkidle", timeout=30000)
+        except Exception:
+            pass
+        time.sleep(4)  # laisser le JS stocker les tokens dans localStorage
+        snap("10_back_on_site")
 
         # Etape 7 : extraire les tokens depuis localStorage
         print("[PW] Extraction des tokens depuis localStorage...")
