@@ -108,31 +108,95 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
                               gmail_user: str, gmail_password: str) -> dict:
     """Lance Chrome headless, fait le login complet, retourne les tokens."""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+        )
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                        "AppleWebKit/537.36 (KHTML, like Gecko) "
                        "Chrome/130.0.0.0 Safari/537.36",
             viewport={"width": 1366, "height": 768},
+            locale="fr-FR",
         )
         page = context.new_page()
 
-        print("[PW] Ouverture du site VIE...")
-        page.goto(VIE_URL, wait_until="domcontentloaded", timeout=60000)
-
-        # Cliquer "Se connecter" si on est sur la home
-        print("[PW] Recherche du bouton Se connecter...")
-        try:
-            # Le bouton de login peut etre present sur la home
-            page.get_by_role("button", name=re.compile(r"connect", re.I)).first.click(timeout=10000)
-        except Exception:
+        def snap(name: str) -> None:
             try:
-                page.get_by_role("link", name=re.compile(r"connect", re.I)).first.click(timeout=5000)
-            except Exception:
-                print("[PW] Pas de bouton login — peut-etre deja sur la page B2C")
+                page.screenshot(path=f"debug_{name}.png", full_page=True)
+                print(f"[DEBUG] {name}.png saved | URL: {page.url}")
+            except Exception as e:
+                print(f"[DEBUG] screenshot {name} failed: {e}")
 
-        # Attendre la page B2C
-        page.wait_for_url("**/b2clogin.com/**", timeout=30000)
+        def dump_html(name: str) -> None:
+            try:
+                with open(f"debug_{name}.html", "w", encoding="utf-8") as f:
+                    f.write(page.content())
+            except Exception:
+                pass
+
+        print("[PW] Ouverture du site VIE...")
+        page.goto(VIE_URL, wait_until="networkidle", timeout=60000)
+        time.sleep(2)
+        snap("01_home")
+        print(f"[PW] URL apres home load : {page.url}")
+
+        # Si on est deja sur b2c (redirect auto), on saute l'etape login click
+        if "b2clogin.com" not in page.url:
+            print("[PW] Recherche d'un lien/bouton de connexion...")
+            login_selectors = [
+                'a:has-text("Se connecter")',
+                'button:has-text("Se connecter")',
+                'a:has-text("Connexion")',
+                'button:has-text("Connexion")',
+                'a:has-text("Mon compte")',
+                'a:has-text("Connectez-vous")',
+                'a:has-text("Login")',
+                '[href*="account"]',
+                '[href*="connect"]',
+                '[href*="login"]',
+                '.btn-login, .login-btn, #login, [data-cy*="login"]',
+            ]
+            login_clicked = False
+            for sel in login_selectors:
+                try:
+                    el = page.locator(sel).first
+                    if el.is_visible(timeout=1500):
+                        print(f"[PW] Login trouve : {sel}")
+                        el.click()
+                        login_clicked = True
+                        break
+                except Exception:
+                    continue
+
+            if not login_clicked:
+                # Fallback : naviguer vers une URL protegee qui force le login
+                print("[PW] Aucun bouton login trouve — fallback sur URL protegee")
+                for protected in ("/mes-candidatures", "/mon-compte", "/profil", "/candidatures"):
+                    try:
+                        page.goto(f"https://mon-vie-via.businessfrance.fr{protected}",
+                                  wait_until="domcontentloaded", timeout=20000)
+                        time.sleep(2)
+                        if "b2clogin.com" in page.url:
+                            print(f"[PW] {protected} a redirige vers B2C")
+                            break
+                    except Exception as e:
+                        print(f"[PW] {protected} echec : {e}")
+
+        # Attendre la page B2C login (avec gestion d'erreur explicite)
+        print("[PW] Attente page B2C...")
+        try:
+            page.wait_for_url("**/b2clogin.com/**", timeout=30000)
+        except Exception:
+            snap("02_no_b2c_redirect")
+            dump_html("02_no_b2c_redirect")
+            print(f"[PW] ECHEC : pas redirige vers b2clogin. URL actuelle: {page.url}")
+            print(f"[PW] Title: {page.title()}")
+            sys.exit(1)
+
+        page.wait_for_load_state("domcontentloaded", timeout=15000)
+        time.sleep(2)
+        snap("03_b2c_landing")
         print("[PW] Page B2C atteinte")
 
         # Etape 1 : email + mot de passe
