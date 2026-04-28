@@ -28,7 +28,7 @@ jobs:
           MS_PASSWORD:        ${{ secrets.MS_PASSWORD }}
           GMAIL_ADDRESS:      ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          RAILWAY_TOKEN:      ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: python playwright_login.py
 
       - name: Upload screenshot on failure
