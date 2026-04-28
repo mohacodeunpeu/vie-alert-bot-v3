@@ -141,47 +141,57 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
         snap("01_home")
         print(f"[PW] URL apres home load : {page.url}")
 
-        # Si on est deja sur b2c (redirect auto), on saute l'etape login click
-        if "b2clogin.com" not in page.url:
-            print("[PW] Recherche d'un lien/bouton de connexion...")
-            login_selectors = [
-                'a:has-text("Se connecter")',
-                'button:has-text("Se connecter")',
-                'a:has-text("Connexion")',
-                'button:has-text("Connexion")',
-                'a:has-text("Mon compte")',
-                'a:has-text("Connectez-vous")',
-                'a:has-text("Login")',
-                '[href*="account"]',
-                '[href*="connect"]',
-                '[href*="login"]',
-                '.btn-login, .login-btn, #login, [data-cy*="login"]',
-            ]
-            login_clicked = False
-            for sel in login_selectors:
-                try:
-                    el = page.locator(sel).first
-                    if el.is_visible(timeout=1500):
-                        print(f"[PW] Login trouve : {sel}")
-                        el.click()
-                        login_clicked = True
-                        break
-                except Exception:
-                    continue
+        # Etape 1 : virer la popup cookies Didomi qui bloque tout
+        print("[PW] Fermeture de la popup cookies (Didomi)...")
+        for cookie_sel in ("#didomi-notice-disagree-button",
+                           "#didomi-notice-agree-button",
+                           "#didomi-notice-x-button"):
+            try:
+                btn = page.locator(cookie_sel)
+                if btn.is_visible(timeout=2000):
+                    btn.click()
+                    print(f"[PW] Cookies fermes via {cookie_sel}")
+                    time.sleep(1)
+                    break
+            except Exception:
+                continue
+        snap("01b_after_cookies")
 
-            if not login_clicked:
-                # Fallback : naviguer vers une URL protegee qui force le login
-                print("[PW] Aucun bouton login trouve — fallback sur URL protegee")
-                for protected in ("/mes-candidatures", "/mon-compte", "/profil", "/candidatures"):
-                    try:
-                        page.goto(f"https://mon-vie-via.businessfrance.fr{protected}",
-                                  wait_until="domcontentloaded", timeout=20000)
-                        time.sleep(2)
-                        if "b2clogin.com" in page.url:
-                            print(f"[PW] {protected} a redirige vers B2C")
-                            break
-                    except Exception as e:
-                        print(f"[PW] {protected} echec : {e}")
+        # Etape 2 : cliquer le lien "Se connecter" (selecteur confirme : a.lien_log)
+        print("[PW] Clic sur 'Se connecter'...")
+        login_selectors = [
+            'a.lien_log',
+            'a:has-text("Se connecter")',
+            'a[data-stc*="Se connecter"]',
+            'button:has-text("Se connecter")',
+            'a:has-text("Connexion")',
+            '[href*="account"]',
+        ]
+        login_clicked = False
+        for sel in login_selectors:
+            try:
+                el = page.locator(sel).first
+                if el.is_visible(timeout=2000):
+                    print(f"[PW] Login trouve : {sel}")
+                    el.click()
+                    login_clicked = True
+                    break
+            except Exception:
+                continue
+
+        if not login_clicked:
+            # Fallback : naviguer vers URL protegee
+            print("[PW] Aucun bouton login trouve — fallback sur URL protegee")
+            for protected in ("/mes-candidatures", "/mon-compte", "/profil", "/candidatures"):
+                try:
+                    page.goto(f"https://mon-vie-via.businessfrance.fr{protected}",
+                              wait_until="domcontentloaded", timeout=20000)
+                    time.sleep(2)
+                    if "b2clogin.com" in page.url:
+                        print(f"[PW] {protected} a redirige vers B2C")
+                        break
+                except Exception as e:
+                    print(f"[PW] {protected} echec : {e}")
 
         # Attendre la page B2C login (avec gestion d'erreur explicite)
         print("[PW] Attente page B2C...")
