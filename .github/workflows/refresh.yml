@@ -1,0 +1,25 @@
+name: Refresh VIE Token
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # toutes les 30 minutes
+  workflow_dispatch:         # bouton "Run workflow" manuel
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Refresh token + update Railway
+        env:
+          REFRESH_TOKEN: ${{ secrets.VIE_REFRESH_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: python refresh_token.py
