@@ -12,6 +12,7 @@ import config
 import discord_notif
 import scraper
 import auto_apply
+import filters
 
 AUTO_APPLY_ENABLED = os.environ.get("AUTO_APPLY", "true").lower() == "true"
 
@@ -110,9 +111,10 @@ def run() -> None:
 
             sent     = 0
             applied  = 0
+            skipped  = 0
 
             for offer in new_offers:
-                # 1. Notifier sur Discord
+                # 1. Notifier sur Discord (TOUTES les offres, sans filtre)
                 if discord_notif.send_offer(offer):
                     cid = offer["composite_id"]
                     seen_ids.add(cid)
@@ -120,14 +122,20 @@ def run() -> None:
                     sent += 1
                     save_seen(seen_ids, timestamps)
 
-                # 2. Postuler automatiquement
+                # 2. Postuler uniquement si offre cible (filtre intelligent)
                 if AUTO_APPLY_ENABLED:
+                    ok, reason = filters.should_apply(offer)
+                    if not ok:
+                        skipped += 1
+                        logger.info("[FILTER] Skip apply: %s | %s",
+                                    reason, offer.get("titre", "")[:60])
+                        continue
                     if auto_apply.apply_offer(offer):
                         applied += 1
 
             elapsed = round(time.time() - t0, 1)
-            logger.info("[CYCLE #%d] Termine en %ss | Discord: %d | Candidatures: %d | Total vus: %d",
-                        cycle, elapsed, sent, applied, len(seen_ids))
+            logger.info("[CYCLE #%d] Termine en %ss | Discord: %d | Candidatures: %d | Skips: %d | Total vus: %d",
+                        cycle, elapsed, sent, applied, skipped, len(seen_ids))
 
         except KeyboardInterrupt:
             logger.info("Arret demande")
