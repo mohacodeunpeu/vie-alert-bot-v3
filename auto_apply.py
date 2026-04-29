@@ -68,18 +68,111 @@ def _safe_text(text: str) -> str:
     return text
 
 
-def _generate_cover_pdf(text: str) -> bytes:
-    pdf = FPDF()
+def _generate_cover_pdf(text: str, offer: dict | None = None) -> bytes:
+    """PDF design pro : header bleu marine, infos contact, mise en page aeree."""
+    NAME    = "Amine Ben Mansour"
+    PHONE   = "+33 6 60 64 57 83"
+    EMAIL   = "mohamedbenpro47@gmail.com"
+
+    # Palette : bleu marine + accent doree
+    NAVY      = (15, 35, 85)      # Bleu marine principal
+    GOLD      = (193, 154, 60)    # Accent
+    GREY_TXT  = (50, 50, 55)
+    LIGHT_BG  = (245, 247, 250)
+
+    pdf = FPDF(format="A4")
     pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=18)
-    pdf.set_font("Helvetica", size=11)
+    pdf.set_auto_page_break(auto=True, margin=20)
+
+    page_w = 210  # A4 mm
+
+    # ─── Header bleu marine ───────────────────────────────────────────────────
+    pdf.set_fill_color(*NAVY)
+    pdf.rect(0, 0, page_w, 32, style="F")
+
+    pdf.set_xy(15, 9)
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 8, _safe_text(NAME.upper()), ln=1)
+
+    pdf.set_x(15)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(220, 225, 235)
+    pdf.cell(0, 6, _safe_text(f"{PHONE}  |  {EMAIL}"), ln=1)
+
+    # Bande doree fine sous le header
+    pdf.set_fill_color(*GOLD)
+    pdf.rect(0, 32, page_w, 1.5, style="F")
+
+    # ─── Bandeau infos offre (si dispo) ───────────────────────────────────────
+    pdf.ln(8)
+    if offer:
+        titre      = offer.get("titre", "")
+        entreprise = offer.get("entreprise", "")
+        ville      = offer.get("ville", "")
+        pays       = offer.get("pays", "")
+        location   = ", ".join([x for x in (ville, pays) if x and x != "N/A"])
+
+        pdf.set_fill_color(*LIGHT_BG)
+        pdf.set_xy(15, pdf.get_y())
+        pdf.set_text_color(*NAVY)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 8, _safe_text(f"Candidature : {titre}"), ln=1, fill=True)
+        pdf.set_x(15)
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(*GREY_TXT)
+        if entreprise:
+            pdf.cell(0, 5, _safe_text(f"{entreprise}{' — ' + location if location else ''}".replace(' — ', ' / ')), ln=1)
+        pdf.ln(4)
+
+    # ─── Date a droite ────────────────────────────────────────────────────────
+    from datetime import datetime
+    pdf.set_x(15)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(120, 120, 125)
+    pdf.cell(0, 5, _safe_text(f"Paris, le {datetime.now().strftime('%d/%m/%Y')}"), align="R", ln=1)
+    pdf.ln(6)
+
+    # ─── Corps de la lettre ───────────────────────────────────────────────────
+    pdf.set_x(15)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_text_color(*GREY_TXT)
 
     text = _safe_text(text)
-    for line in text.split("\n"):
-        if line.strip():
-            pdf.multi_cell(0, 6, line)
-        else:
-            pdf.ln(3)
+    for para in text.split("\n\n"):
+        para = para.strip()
+        if not para:
+            continue
+        # Indication speciale pour la signature finale
+        if para.startswith("Cordialement"):
+            pdf.ln(4)
+            pdf.set_font("Helvetica", "", 11)
+            for line in para.split("\n"):
+                pdf.set_x(15)
+                pdf.multi_cell(180, 6, line)
+            continue
+        # Salutation initiale en gras
+        if para.startswith("Madame"):
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_x(15)
+            pdf.multi_cell(180, 6, para)
+            pdf.set_font("Helvetica", "", 11)
+            pdf.ln(2)
+            continue
+        # Paragraphes normaux
+        pdf.set_x(15)
+        pdf.multi_cell(180, 6, para)
+        pdf.ln(3)
+
+    # ─── Footer doree fine ────────────────────────────────────────────────────
+    pdf.set_y(-15)
+    pdf.set_fill_color(*GOLD)
+    pdf.rect(0, 282, page_w, 1, style="F")
+    pdf.set_y(-12)
+    pdf.set_x(15)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(140, 140, 145)
+    pdf.cell(0, 5, _safe_text(f"{NAME}  |  {PHONE}  |  {EMAIL}"), align="C")
 
     out = pdf.output(dest="S")
     if isinstance(out, str):
@@ -139,10 +232,11 @@ def apply_offer(offer: dict) -> bool:
         or ""
     )
 
-    # Generer lettre personnalisee
+    # Generer lettre personnalisee + message court
     motivation_text = cl.generate(offer)
+    short_message   = cl.generate_short_message(offer)
     try:
-        cover_pdf = _generate_cover_pdf(motivation_text)
+        cover_pdf = _generate_cover_pdf(motivation_text, offer)
     except Exception as e:
         logger.error("[APPLY] Erreur generation PDF: %s", e)
         return False
@@ -157,7 +251,7 @@ def apply_offer(offer: dict) -> bool:
 
     data = {
         "UserId":             USER_ID,
-        "Message":            motivation_text,
+        "Message":            short_message,
         "CandidateEmail":     CANDIDATE_EMAIL,
         "CandidateFirstName": CANDIDATE_FIRST,
         "CandidateLastName":  CANDIDATE_LAST,
