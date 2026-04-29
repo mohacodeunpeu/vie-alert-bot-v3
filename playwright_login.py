@@ -28,7 +28,8 @@ from playwright.sync_api import sync_playwright
 
 
 VIE_URL          = "https://mon-vie-via.businessfrance.fr/"
-RAILWAY_API      = "https://backboard.railway.com/graphql/v2"
+GITHUB_REPO      = os.environ.get("GITHUB_REPO", "mohacodeunpeu/vie-alert-bot-v3")
+GITHUB_API       = "https://api.github.com"
 SENDER_FILTER    = "msonlineservicesteam@microsoftonline.com"
 CODE_REGEX       = re.compile(r"\b(\d{6})\b")
 GMAIL_IMAP_HOST  = "imap.gmail.com"
@@ -536,68 +537,32 @@ def login_and_extract_tokens(ms_email: str, ms_password: str,
         }
 
 
-# ─── Railway GraphQL ──────────────────────────────────────────────────────────
+# ─── GitHub Repository Variables (storage) ────────────────────────────────────
 
-def gql(query: str, token: str, variables: dict = None) -> dict:
-    resp = requests.post(
-        RAILWAY_API,
-        json={"query": query, "variables": variables or {}},
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        timeout=30,
-    )
-    if resp.status_code != 200:
-        print(f"[RAILWAY] HTTP {resp.status_code}: {resp.text[:500]}")
-        sys.exit(1)
-    data = resp.json()
-    if "errors" in data:
-        print(f"[RAILWAY] GraphQL error: {data['errors']}")
-        sys.exit(1)
-    return data["data"]
-
-
-def find_ids(railway_token: str):
-    query = """
-    query {
-      me {
-        projects {
-          edges {
-            node {
-              id name
-              environments { edges { node { id name } } }
-              services     { edges { node { id name } } }
-            }
-          }
-        }
-      }
+def update_github_variable(repo: str, name: str, value: str, gh_pat: str) -> None:
+    """Cree ou met a jour une Repository Variable GitHub."""
+    headers = {
+        "Accept":               "application/vnd.github+json",
+        "Authorization":        f"Bearer {gh_pat}",
+        "X-GitHub-Api-Version": "2022-11-28",
     }
-    """
-    data = gql(query, railway_token)
-    for p in data["me"]["projects"]["edges"]:
-        proj = p["node"]
-        for s in proj["services"]["edges"]:
-            srv = s["node"]
-            if "vie" in srv["name"].lower() or "alert" in srv["name"].lower():
-                envs = proj["environments"]["edges"]
-                env  = next((e["node"] for e in envs if e["node"]["name"] == "production"),
-                            envs[0]["node"])
-                print(f"[RAILWAY] Found {proj['name']} / {srv['name']}")
-                return proj["id"], env["id"], srv["id"]
-    print("[RAILWAY] Service VIE introuvable")
+    # Tenter PATCH (update si existe)
+    url_patch = f"{GITHUB_API}/repos/{repo}/actions/variables/{name}"
+    r = requests.patch(url_patch, json={"name": name, "value": value},
+                       headers=headers, timeout=30)
+    if r.status_code in (200, 204):
+        print(f"[GITHUB] {name} update OK")
+        return
+    if r.status_code == 404:
+        # N'existe pas encore : POST pour creer
+        url_post = f"{GITHUB_API}/repos/{repo}/actions/variables"
+        r = requests.post(url_post, json={"name": name, "value": value},
+                          headers=headers, timeout=30)
+        if r.status_code in (200, 201, 204):
+            print(f"[GITHUB] {name} create OK")
+            return
+    print(f"[GITHUB] FAIL {name}: HTTP {r.status_code} {r.text[:300]}")
     sys.exit(1)
-
-
-def update_var(railway_token: str, project_id: str, env_id: str,
-               service_id: str, name: str, value: str):
-    mutation = """
-    mutation upsert($input: VariableUpsertInput!) {
-      variableUpsert(input: $input)
-    }
-    """
-    gql(mutation, railway_token, {"input": {
-        "projectId": project_id, "environmentId": env_id,
-        "serviceId": service_id, "name": name, "value": value,
-    }})
-    print(f"[RAILWAY] {name} OK")
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -607,14 +572,13 @@ def main():
     ms_password    = os.environ["MS_PASSWORD"]
     gmail_user     = os.environ.get("GMAIL_ADDRESS", ms_email)
     gmail_password = os.environ["GMAIL_APP_PASSWORD"]
-    railway_token  = os.environ["RAILWAY_TOKEN"]
+    gh_pat         = os.environ["GH_PAT"]
 
     tokens = login_and_extract_tokens(ms_email, ms_password, gmail_user, gmail_password)
 
-    p_id, e_id, s_id = find_ids(railway_token)
-    update_var(railway_token, p_id, e_id, s_id, "ACCESS_TOKEN",     tokens["access_token"])
-    update_var(railway_token, p_id, e_id, s_id, "REFRESH_TOKEN",    tokens["refresh_token"])
-    update_var(railway_token, p_id, e_id, s_id, "TOKEN_EXPIRES_AT", str(tokens["expires_at"]))
+    update_github_variable(GITHUB_REPO, "VIE_ACCESS_TOKEN",     tokens["access_token"], gh_pat)
+    update_github_variable(GITHUB_REPO, "VIE_REFRESH_TOKEN",    tokens["refresh_token"], gh_pat)
+    update_github_variable(GITHUB_REPO, "VIE_TOKEN_EXPIRES_AT", str(tokens["expires_at"]), gh_pat)
 
     print(f"[OK] Termine — token valide jusqu'a {time.strftime('%H:%M:%S UTC', time.gmtime(tokens['expires_at']))}")
 
