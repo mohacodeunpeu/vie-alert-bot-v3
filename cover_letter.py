@@ -314,14 +314,59 @@ def _mirror_mission(description: str) -> str:
 # ─── Hook : XP intl + MBA + ce qu'on apporte au poste precis ──────────────────
 
 def _hook(role: str, titre: str, entreprise: str) -> str:
+    """
+    Hook d'ouverture VARIABLE selon le sous-role pour eviter l'effet template.
+    Pose : ce que j'apporte au poste precis, mon profil (XP intl + MBA), l'energie.
+    """
     poste = (titre or "ce poste").strip()
+
+    # Marketing : ouverture orientee strategie / contenu / produit
+    if role in ("product_marketing", "digital_marketing"):
+        return (
+            f"C'est avec un fort interet que je postule au poste de {poste} chez {entreprise}. "
+            f"Diplome en cours de MBA Manager de Business Unit a PSB Paris (soutenance juin "
+            f"2026), avec une experience concrete de gestion de projets digitaux a "
+            f"l'international (Lisbonne) et de community management (GROW 360, Paris), je "
+            f"souhaite mettre cette double culture marketing/projets au service de votre equipe."
+        )
+
+    # Finance / Analytics : ouverture orientee rigueur + chiffres
+    if role in ("financial_analyst", "data_analyst"):
+        return (
+            f"Je me permets de vous adresser ma candidature au poste de {poste} chez "
+            f"{entreprise}. En MBA Manager de Business Unit a PSB Paris (soutenance juin "
+            f"2026) et actuellement en charge du pilotage operationnel d'une activite "
+            f"generant 360 KEUR de CA mensuel, je souhaite valoriser cette double "
+            f"culture (gestion + analyse) au service de vos enjeux financiers."
+        )
+
+    # Achats / Procurement : ouverture orientee negociation
+    if role == "purchasing":
+        return (
+            f"Je vous adresse ma candidature au poste de {poste} chez {entreprise}. "
+            f"Forme a la negociation a la fois en pratique (Business Developer B2B, 360 KEUR "
+            f"de CA mensuel) et en formation (Negotiation Business School, certifie 2025, "
+            f"plus modules MBA), je souhaite transposer cette competence sur les enjeux "
+            f"achats et categoriels."
+        )
+
+    # HR / Recrutement
+    if role == "hr":
+        return (
+            f"Je suis particulierement motive par le poste de {poste} chez {entreprise}. "
+            f"Recruitment Officer chez Agence 113 / DEFI GROUPE ou je gere actuellement des "
+            f"sessions reunissant plus de 300 candidats, et en MBA Manager de Business Unit "
+            f"(PSB Paris, juin 2026), je combine experience operationnelle RH et hauteur "
+            f"strategique business."
+        )
+
+    # Commerce / Sales / Key Account / Business Dev
     return (
-        f"Diplome en cours de mon MBA Manager de Business Unit a PSB Paris School of "
-        f"Business, avec une experience operationnelle en France et a l'international "
-        f"(Lisbonne), je vous adresse ma candidature pour le poste de {poste} chez "
-        f"{entreprise}. Ce que je veux vous apporter : la rigueur de mon MBA, l'energie "
-        f"d'un profil junior ambitieux, et une capacite immediate a creer de la valeur "
-        f"sur des contextes internationaux exigeants."
+        f"Actuellement Business Developer B2B chez Agence 113 / DEFI GROUPE, ou je pilote "
+        f"un portefeuille generant 360 KEUR de CA mensuel, et diplome en cours de MBA "
+        f"Manager de Business Unit a PSB Paris (soutenance juin 2026), je souhaite mettre "
+        f"mon experience commerciale et ma rigueur de pilotage au service de votre equipe "
+        f"sur le poste de {poste} chez {entreprise}."
     )
 
 

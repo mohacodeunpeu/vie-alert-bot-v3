@@ -83,30 +83,29 @@ def _generate_cover_pdf(text: str, offer: dict | None = None) -> bytes:
 
     pdf = FPDF(format="A4")
     pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.set_auto_page_break(auto=False)  # On garantit 1 page
 
-    page_w = 210  # A4 mm
+    page_w = 210
 
-    # ─── Header bleu marine ───────────────────────────────────────────────────
+    # ─── Header bleu marine compact ───────────────────────────────────────────
     pdf.set_fill_color(*NAVY)
-    pdf.rect(0, 0, page_w, 32, style="F")
+    pdf.rect(0, 0, page_w, 26, style="F")
 
-    pdf.set_xy(15, 9)
-    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_xy(15, 6)
+    pdf.set_font("Helvetica", "B", 16)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 8, _safe_text(NAME.upper()), ln=1)
+    pdf.cell(0, 7, _safe_text(NAME.upper()), ln=1)
 
     pdf.set_x(15)
-    pdf.set_font("Helvetica", "", 10)
+    pdf.set_font("Helvetica", "", 9.5)
     pdf.set_text_color(220, 225, 235)
-    pdf.cell(0, 6, _safe_text(f"{PHONE}  |  {EMAIL}"), ln=1)
+    pdf.cell(0, 5, _safe_text(f"{PHONE}  |  {EMAIL}  |  Paris"), ln=1)
 
-    # Bande doree fine sous le header
     pdf.set_fill_color(*GOLD)
-    pdf.rect(0, 32, page_w, 1.5, style="F")
+    pdf.rect(0, 26, page_w, 1, style="F")
 
-    # ─── Bandeau infos offre (si dispo) ───────────────────────────────────────
-    pdf.ln(8)
+    # ─── Bandeau infos offre + date ───────────────────────────────────────────
+    pdf.set_y(30)
     if offer:
         titre      = offer.get("titre", "")
         entreprise = offer.get("entreprise", "")
@@ -117,63 +116,57 @@ def _generate_cover_pdf(text: str, offer: dict | None = None) -> bytes:
         pdf.set_fill_color(*LIGHT_BG)
         pdf.set_xy(15, pdf.get_y())
         pdf.set_text_color(*NAVY)
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.cell(0, 8, _safe_text(f"Candidature : {titre}"), ln=1, fill=True)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 6, _safe_text(f"Candidature : {titre}"), ln=1, fill=True)
         pdf.set_x(15)
-        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_font("Helvetica", "I", 8.5)
         pdf.set_text_color(*GREY_TXT)
         if entreprise:
-            pdf.cell(0, 5, _safe_text(f"{entreprise}{' — ' + location if location else ''}".replace(' — ', ' / ')), ln=1)
-        pdf.ln(4)
+            pdf.cell(0, 4.5, _safe_text(f"{entreprise} / {location}".rstrip(" /")), ln=1)
+        pdf.ln(2)
 
-    # ─── Date a droite ────────────────────────────────────────────────────────
     from datetime import datetime
     pdf.set_x(15)
-    pdf.set_font("Helvetica", "", 9)
+    pdf.set_font("Helvetica", "", 8.5)
     pdf.set_text_color(120, 120, 125)
-    pdf.cell(0, 5, _safe_text(f"Paris, le {datetime.now().strftime('%d/%m/%Y')}"), align="R", ln=1)
-    pdf.ln(6)
+    pdf.cell(0, 4.5, _safe_text(f"Paris, le {datetime.now().strftime('%d/%m/%Y')}"), align="R", ln=1)
+    pdf.ln(3)
 
-    # ─── Corps de la lettre ───────────────────────────────────────────────────
+    # ─── Corps : compact, garantie 1 page ─────────────────────────────────────
     pdf.set_x(15)
-    pdf.set_font("Helvetica", "", 11)
+    pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(*GREY_TXT)
 
-    text = _safe_text(text)
-    for para in text.split("\n\n"):
-        para = para.strip()
-        if not para:
-            continue
-        # Indication speciale pour la signature finale
+    text  = _safe_text(text)
+    paras = [p.strip() for p in text.split("\n\n") if p.strip()]
+
+    for para in paras:
         if para.startswith("Cordialement"):
-            pdf.ln(4)
-            pdf.set_font("Helvetica", "", 11)
+            pdf.ln(2)
+            pdf.set_font("Helvetica", "", 10)
             for line in para.split("\n"):
                 pdf.set_x(15)
-                pdf.multi_cell(180, 6, line)
+                pdf.multi_cell(180, 4.8, line)
             continue
-        # Salutation initiale en gras
         if para.startswith("Madame"):
-            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_font("Helvetica", "B", 10)
             pdf.set_x(15)
-            pdf.multi_cell(180, 6, para)
-            pdf.set_font("Helvetica", "", 11)
-            pdf.ln(2)
+            pdf.multi_cell(180, 4.8, para)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.ln(1)
             continue
-        # Paragraphes normaux
         pdf.set_x(15)
-        pdf.multi_cell(180, 6, para)
-        pdf.ln(3)
+        pdf.multi_cell(180, 4.8, para)
+        pdf.ln(1.5)
 
     # ─── Footer doree fine ────────────────────────────────────────────────────
-    pdf.set_y(-15)
     pdf.set_fill_color(*GOLD)
-    pdf.rect(0, 282, page_w, 1, style="F")
-    pdf.set_y(-12)
+    pdf.rect(0, 286, page_w, 0.5, style="F")
+    pdf.set_y(-9)
     pdf.set_x(15)
-    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_font("Helvetica", "I", 7.5)
     pdf.set_text_color(140, 140, 145)
-    pdf.cell(0, 5, _safe_text(f"{NAME}  |  {PHONE}  |  {EMAIL}"), align="C")
+    pdf.cell(0, 4, _safe_text(f"{NAME}  |  {PHONE}  |  {EMAIL}"), align="C")
 
     out = pdf.output(dest="S")
     if isinstance(out, str):
