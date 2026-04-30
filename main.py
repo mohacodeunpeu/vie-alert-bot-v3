@@ -13,6 +13,8 @@ import discord_notif
 import scraper
 import auto_apply
 import filters
+import scorer
+import apply_log
 
 AUTO_APPLY_ENABLED = os.environ.get("AUTO_APPLY", "true").lower() == "true"
 
@@ -122,7 +124,7 @@ def run() -> None:
                     sent += 1
                     save_seen(seen_ids, timestamps)
 
-                # 2. Postuler uniquement si offre cible (filtre intelligent)
+                # 2. Postuler uniquement si offre cible (filtre geo/secteur + score)
                 if AUTO_APPLY_ENABLED:
                     ok, reason = filters.should_apply(offer)
                     if not ok:
@@ -130,7 +132,21 @@ def run() -> None:
                         logger.info("[FILTER] Skip apply: %s | %s",
                                     reason, offer.get("titre", "")[:60])
                         continue
-                    if auto_apply.apply_offer(offer):
+
+                    # Scoring /100 — postuler seulement si >= seuil
+                    score_result = scorer.score_offer(offer)
+                    if not score_result["should_apply"]:
+                        skipped += 1
+                        logger.info("[SCORE] Skip (score=%d<%d) | %s | %s",
+                                    score_result["total"],
+                                    scorer.APPLY_THRESHOLD,
+                                    offer.get("pays", ""),
+                                    offer.get("titre", "")[:50])
+                        continue
+
+                    success = auto_apply.apply_offer(offer)
+                    apply_log.log_application(offer, score_result, success)
+                    if success:
                         applied += 1
 
             elapsed = round(time.time() - t0, 1)
