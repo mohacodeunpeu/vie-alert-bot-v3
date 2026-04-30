@@ -44,8 +44,10 @@ EXCLUDED_COUNTRIES = {
     "djibouti", "somalie", "somalia", "erythree", "érythrée", "eritrea",
     "libye", "libya", "mauritanie", "mauritania",
     # Europe (incluant UK, Suisse, Norvège même hors UE)
-    "france", "allemagne", "germany", "espagne", "spain", "italie", "italy",
-    "portugal", "belgique", "belgium", "pays-bas", "pays bas", "netherlands",
+    # NOTE : Espagne et Portugal volontairement gardes ELIGIBLES
+    # (espagnol intermediaire + experience Lisbonne = avantages directs)
+    "france", "allemagne", "germany", "italie", "italy",
+    "belgique", "belgium", "pays-bas", "pays bas", "netherlands",
     "luxembourg", "suisse", "switzerland", "autriche", "austria",
     "danemark", "denmark", "suede", "suède", "sweden", "norvege", "norvège",
     "norway", "finlande", "finland", "irlande", "ireland",

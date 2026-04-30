@@ -13,6 +13,7 @@ from fpdf import FPDF
 
 import auth
 import cover_letter as cl
+import cv_generator
 
 logger = logging.getLogger(__name__)
 
@@ -214,8 +215,9 @@ def apply_offer(offer: dict) -> bool:
     if offer_id in applied:
         return False
 
+    # Le CV statique sert de fallback si la generation dynamique echoue
     if not CV_FILE.exists():
-        logger.error("[APPLY] CV introuvable: %s", CV_FILE.absolute())
+        logger.error("[APPLY] CV statique introuvable: %s", CV_FILE.absolute())
         return False
 
     token = auth.get_token()
@@ -241,7 +243,13 @@ def apply_offer(offer: dict) -> bool:
         logger.error("[APPLY] Erreur generation PDF: %s", e)
         return False
 
-    cv_bytes = CV_FILE.read_bytes()
+    # Generer un CV personnalise pour cette offre (fallback : CV statique)
+    try:
+        cv_bytes = cv_generator.generate(offer)
+        logger.info("[APPLY] CV dynamique genere (%d octets) pour role detecte", len(cv_bytes))
+    except Exception as e:
+        logger.warning("[APPLY] Echec generation CV dynamique (%s) - fallback CV statique", e)
+        cv_bytes = CV_FILE.read_bytes()
 
     # Multipart exactement comme le navigateur
     files = {
