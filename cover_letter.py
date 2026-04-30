@@ -71,7 +71,7 @@ def _hook_index(offer: dict, n_variants: int) -> int:
 
 def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
     poste = (titre or "ce poste").strip()
-    idx   = _hook_index(offer, 2)
+    idx   = _hook_index(offer, 3)
 
     if role in ("product_marketing", "digital_marketing"):
         variants = [
@@ -91,8 +91,22 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
                 f"(soutenance juin 2026), je cherche a mettre ces competences "
                 f"au service d'une equipe internationale ambitieuse."
             ),
+            (
+                f"Chaque projet digital que j'ai mene - de Lisbonne a Paris - a "
+                f"confirme une chose : je m'epanouis dans les environnements ou "
+                f"marketing, produit et donnees se croisent. Le poste de {poste} "
+                f"chez {entreprise} est exactement cet environnement. MBA Manager "
+                f"de Business Unit (PSB Paris, juin 2026), disponible des juin 2026."
+            ),
+            (
+                f"Le marketing qui laisse des traces, c'est celui qui se mesure. "
+                f"C'est la culture que j'ai construite chez GROW 360 (Paris) et "
+                f"en projets clients a Lisbonne : briefer, produire, mesurer, "
+                f"ajuster. Le poste de {poste} chez {entreprise} est le terrain "
+                f"ideal pour passer a l'echelle internationale."
+            ),
         ]
-        return variants[idx]
+        return variants[idx % len(variants)]
 
     if role in ("financial_analyst", "data_analyst"):
         variants = [
@@ -112,8 +126,22 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
                 f"indicateurs a forts enjeux et cherche a transposer cette "
                 f"rigueur dans un contexte international."
             ),
+            (
+                f"Deux ans a piloter une activite a forts enjeux chiffres m'ont "
+                f"appris a lire un business dans ses donnees, pas seulement dans "
+                f"ses resultats. C'est cette lecture que je veux developper en "
+                f"rejoignant {entreprise} sur le poste de {poste}. MBA Manager "
+                f"de Business Unit (PSB Paris, juin 2026), module controle de gestion."
+            ),
+            (
+                f"Les meilleures decisions financieres viennent de gens qui ont "
+                f"vecu le business operationnellement. En pilotant 360 KEUR/mois "
+                f"au quotidien, j'ai developpe cette double lecture qui fait la "
+                f"difference. C'est ce que je veux apporter a {entreprise} sur "
+                f"le poste de {poste}."
+            ),
         ]
-        return variants[idx]
+        return variants[idx % len(variants)]
 
     if role == "purchasing":
         variants = [
@@ -131,8 +159,14 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
                 f"GROUPE, et que je souhaite mettre au service du poste de "
                 f"{poste} chez {entreprise}."
             ),
+            (
+                f"Maitriser une negociation, c'est comprendre les contraintes de "
+                f"l'autre partie avant de defendre les siennes. C'est l'approche "
+                f"que j'ai construite en B2B et que je veux transposer aux achats "
+                f"en rejoignant {entreprise} sur le poste de {poste}."
+            ),
         ]
-        return variants[idx]
+        return variants[idx % len(variants)]
 
     if role == "hr":
         variants = [
@@ -149,8 +183,15 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
                 f"c'est celle qui comprend le business. C'est pourquoi le poste "
                 f"de {poste} chez {entreprise} me correspond directement."
             ),
+            (
+                f"La RH qui delivre, c'est celle qui parle le langage du business. "
+                f"Mon double profil - Business Developer B2B en autonomie et "
+                f"Recruitment Officer chez Agence 113 - me donne exactement cette "
+                f"double lecture. C'est pourquoi le poste de {poste} chez "
+                f"{entreprise} m'interesse directement."
+            ),
         ]
-        return variants[idx]
+        return variants[idx % len(variants)]
 
     # Commerce / Sales / Key Account / Business Dev / generic
     variants = [
@@ -168,8 +209,31 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
             f"et MBA Manager de Business Unit en cours (PSB Paris, juin 2026), "
             f"je suis pret a delivrer des resultats concrets depuis le premier mois."
         ),
+        (
+            f"J'ai pris deux ans pour construire une experience B2B solide avant "
+            f"de viser l'international. Aujourd'hui, le poste de {poste} chez "
+            f"{entreprise} est la prochaine etape logique. Business Developer a "
+            f"360 KEUR/mois, MBA Manager de Business Unit en cours (PSB Paris, "
+            f"juin 2026) : je suis pret a delivrer depuis le premier mois."
+        ),
+        # Hook oriente resultat
+        (
+            f"360 KEUR/mois, ce n'est pas un chiffre sur un CV - c'est 30 deals "
+            f"en cours, des relances quotidiennes, des negociations qui vont "
+            f"jusqu'au bout. C'est cette discipline que je veux mettre au service "
+            f"du poste de {poste} chez {entreprise}, avec le recul qu'apporte "
+            f"mon MBA Manager de Business Unit (PSB Paris, juin 2026)."
+        ),
+        # Hook oriente projection entreprise
+        (
+            f"Sur le poste de {poste} chez {entreprise}, mon objectif est clair : "
+            f"etre operationnel depuis la premiere semaine et delivrer des "
+            f"resultats mesurables sur la duree de la mission. Business Developer "
+            f"B2B (360 KEUR/mois) et MBA Manager de Business Unit en cours "
+            f"(PSB Paris, juin 2026), je suis pret a prendre cet engagement."
+        ),
     ]
-    return variants[idx]
+    return variants[idx % len(variants)]
 
 
 # ─── Pitch par role ───────────────────────────────────────────────────────────
@@ -401,32 +465,110 @@ def _country_context(pays: str) -> tuple:
     return ("", "")
 
 
-# ─── Mirror mission : extraire 2-3 elements specifiques de l'offre ────────────
+# ─── Pont offre<->experience : connexion naturelle, sans dump brut ─────────────
 
-def _mission_reference(offer: dict, analysis: dict) -> str:
-    """Construit une phrase referancant des elements concrets de l'offre."""
-    description = offer.get("description", "")
-    actions     = analysis.get("actions", [])
-    industry    = analysis.get("industry", "generic")
-    tools       = analysis.get("tools", [])
+def _offer_bridge(offer: dict, analysis: dict, role: str) -> str:
+    """
+    Connecte les enjeux de l'offre a l'experience concrete d'Amine.
+    Reformule intelligemment — jamais de copie brute du texte de l'offre.
+    """
+    actions  = analysis.get("actions", [])
+    industry = analysis.get("industry", "generic")
+    pays     = offer.get("pays", "")
+    a1       = actions[0] if len(actions) >= 1 else ""
+    a2       = actions[1] if len(actions) >= 2 else ""
 
-    # Tenter d'extraire une mission-snippet specifique
-    if description and len(description) >= 80:
-        snippet = description.strip()
-        snippet = re.sub(r"\s+", " ", snippet)
-        if len(snippet) > 160:
-            snippet = snippet[:160].rsplit(" ", 1)[0] + "..."
-        ref = f"La mission que vous decrivez - {snippet} - correspond exactement "
-        ref += "a l'environnement dans lequel je veux construire la suite de mon parcours."
-        return ref
-
-    # Fallback sur les mots-cles
-    if actions:
-        kws = ", ".join(actions[:3])
+    # Bridges role-specifiques : connectent DIRECTEMENT l'experience au besoin
+    if role == "financial_analyst":
+        if a1 and a2:
+            return (
+                f"La dimension {a1} / {a2} au coeur de cette mission correspond "
+                f"directement a ce que je pratique : suivi budgetaire d'une activite "
+                f"a 360 KEUR/mois, dashboards Excel avances et reporting mensuel "
+                f"actionnable pour la direction."
+            )
         return (
-            f"Les competences que vous recherchez ({kws}) correspondent "
-            f"directement a mon profil et a mes objectifs de developpement."
+            "Le pilotage financier que vous portez correspond directement a ce que "
+            "je pratique au quotidien : 360 KEUR/mois suivis en temps reel, "
+            "reporting direction, lecture business des indicateurs."
         )
+
+    if role == "data_analyst":
+        if a1:
+            return (
+                f"L'enjeu {a1} que vous portez correspond a l'approche que j'ai "
+                f"construite : partir des donnees pour produire des insights "
+                f"actionnables pour les decideurs, pas des reportings pour des "
+                f"reportings."
+            )
+        return (
+            "Mon approche : partir des donnees business pour produire des insights "
+            "actionnables, pas des tableaux. C'est l'orientation que j'ai donnee "
+            "a mon MBA et que je veux developper chez vous."
+        )
+
+    if role in ("product_marketing", "digital_marketing"):
+        if a1 and a2:
+            return (
+                f"Les dimensions {a1} et {a2} que vous portez correspondent "
+                f"aux missions que j'ai menees de bout en bout : a Lisbonne (Wix, "
+                f"projets digitaux clients) et a Paris (GROW 360, engagement "
+                f"et contenu), j'ai appris a transformer un brief en resultats mesurables."
+            )
+        return (
+            "Le pilotage marketing de bout en bout que vous decrivez correspond "
+            "exactement aux projets que j'ai menes : de Lisbonne (projets web "
+            "clients) a Paris (strategie de contenu GROW 360), j'ai construit "
+            "une culture du resultat mesure."
+        )
+
+    if role in ("business_dev", "sales", "key_account"):
+        # Ne pas utiliser des keywords generiques (reporting, analyse) pour un pont commercial
+        _GENERIC_KWS = {"reporting", "analyse", "budget", "forecast", "dashboard", "kpi"}
+        commercial_kw = next((a for a in actions if a not in _GENERIC_KWS), "")
+        if commercial_kw:
+            return (
+                f"La dimension {commercial_kw} au coeur de ce poste correspond directement au "
+                f"travail que je mene chez Agence 113 / DEFI GROUPE : structurer "
+                f"un pipeline, qualifier et closer en autonomie sur 360 KEUR/mois."
+            )
+        return (
+            "Le developpement commercial que vous portez correspond directement "
+            "a ce que je pratique : structurer un pipeline, negocier en autonomie "
+            "et delivrer sur un portefeuille a 360 KEUR/mois."
+        )
+
+    if role == "purchasing":
+        return (
+            "La logique achats - comprendre ce que l'autre partie veut vraiment "
+            "avant de defendre ses positions - est exactement l'approche que j'ai "
+            "construite en B2B et que je veux transposer a votre categorie."
+        )
+
+    if role == "hr":
+        return (
+            "Le recrutement qui delivre, c'est celui qui comprend le business. "
+            "Mon double profil Business Developer / Recruitment Officer m'a donne "
+            "exactement cette double lecture que vous recherchez."
+        )
+
+    # Fallback : secteur ou pays
+    _INDUSTRY_BRIDGES = {
+        "luxe":    "La culture de l'exigence et du detail que vous incarnez correspond naturellement a l'approche que j'ai developpee sur des postes premium (Printemps Haussmann, clients Wix intl).",
+        "energie": "Les enjeux d'envergure et la transformation que vous portez correspondent a ce que je recherche deliberement pour mon premier poste international.",
+        "conseil": "La culture du resultat et l'orientation client de votre environnement correspondent exactement a ce que j'apporte.",
+        "retail":  "La dynamique commerciale et la pression par les chiffres de votre secteur sont exactement l'environnement dans lequel je progresse le mieux.",
+        "finance": "Les enjeux analytiques et la rigueur de votre secteur correspondent au module de controle de gestion que je finalise et a ma pratique quotidienne.",
+    }
+    if industry in _INDUSTRY_BRIDGES:
+        return _INDUSTRY_BRIDGES[industry]
+
+    if pays and pays not in ("N/A", ""):
+        return (
+            f"Ce poste en {pays} correspond au niveau de complexite et d'exigence "
+            f"que je recherche deliberement pour ma premiere mission internationale."
+        )
+
     return ""
 
 
@@ -443,7 +585,7 @@ def generate(offer: dict) -> str:
     analysis    = oa.analyze(offer)
 
     hook        = _hook(role, titre, entreprise, offer)
-    mission_ref = _mission_reference(offer, analysis)
+    bridge      = _offer_bridge(offer, analysis, role)
     pitch       = pitch_for(role, entreprise, description)
     deliver     = deliverables_for(role)
     market, lang_line = _country_context(pays)
@@ -453,8 +595,8 @@ def generate(offer: dict) -> str:
 
     paras = ["Madame, Monsieur,", hook]
 
-    if mission_ref:
-        paras.append(mission_ref)
+    if bridge:
+        paras.append(bridge)
 
     paras.append(pitch)
     paras.append(deliver)
