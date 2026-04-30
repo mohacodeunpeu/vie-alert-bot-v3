@@ -1,10 +1,10 @@
 """
 CV genere dynamiquement par offre, niveau pro Bac+5.
-- 1 page A4 garantie (layout compact + 2 colonnes en bas)
-- Resume professionnel adapte a l'offre EXACTE (mission + role + mots-cles)
-- Experiences reorganisees par pertinence + bullets selectionnes
-- Mise en page ATS-friendly (texte selectable, sections standards)
-- Design : header bleu marine + accent dore + QR code optionnel
+- 1 page A4 garantie (layout ultra-compact, bullets courtes <= 78 chars)
+- Titre/tagline adapte au role detecte
+- Experiences reorganisees par pertinence offre
+- Mots-cles ATS de l'offre injectes via offer_analyzer
+- Design : header bleu marine + accent dore + QR code LinkedIn
 """
 
 import io
@@ -15,121 +15,128 @@ import tempfile
 from fpdf import FPDF
 
 import cover_letter as cl
+import offer_analyzer as oa
 
 
 # ─── Donnees reelles d'Amine ──────────────────────────────────────────────────
 
 PROFILE = {
     "name":       "AMINE BEN MANSOUR",
-    "tagline":    "Business Developer | MBA Manager de Business Unit | Disponible VIE 2026",
     "phone":      "+33 6 60 64 57 83",
     "email":      "mohamedbenpro47@gmail.com",
     "city":       "Paris, France",
-    "permit":     "Permis B",
-    "remote":     "Remote OK",
-    # QR : peut etre ton LinkedIn, ton CV video, ton portfolio, ton site perso.
-    # Mets une URL ici, le bot mettra automatiquement un QR code en haut a droite.
-    # Laisse vide ('') pour ne pas afficher de QR.
     "qr_url":     "https://www.linkedin.com/in/amine-ben-mansour-b50a06246/",
     "qr_label":   "Mon LinkedIn",
+    "video_cv_url": "",
 }
 
 
-# ─── Resumes par sous-role (base, raffines ensuite par offre) ─────────────────
+# Tagline adapte par role (ligne sous le nom dans le header)
+TAGLINE_BY_ROLE = {
+    "product_marketing": "Brand & Product Manager | MBA Manager de Business Unit | VIE 2026",
+    "digital_marketing": "Digital Marketing | MBA Manager de Business Unit | VIE 2026",
+    "financial_analyst": "Financial Analyst | MBA Manager de Business Unit | VIE 2026",
+    "data_analyst":      "Data & Business Analyst | MBA Manager de Business Unit | VIE 2026",
+    "purchasing":        "Achats & Category | MBA Manager de Business Unit | VIE 2026",
+    "key_account":       "Key Account Manager | MBA Manager de Business Unit | VIE 2026",
+    "business_dev":      "Business Developer | MBA Manager de Business Unit | VIE 2026",
+    "sales":             "Sales Manager B2B | MBA Manager de Business Unit | VIE 2026",
+    "hr":                "Talent Acquisition | MBA Manager de Business Unit | VIE 2026",
+    "generic":           "Business Developer | MBA Manager de Business Unit | VIE 2026",
+}
+
+
+# ─── Resumes par sous-role ────────────────────────────────────────────────────
 
 SUMMARY_BASE = {
     "product_marketing": (
-        "MBA Manager de Business Unit (PSB Paris, soutenance juin 2026), avec une "
-        "experience de gestion de projets digitaux internationaux (Wix Lisbonne) et de "
-        "community management (GROW 360). Profil capable de structurer une demarche "
-        "produit et de la decliner en actions marketing concretes."
+        "MBA Manager de Business Unit (PSB Paris, juin 2026). Gestion de projets "
+        "digitaux intl (Wix Lisbonne) et community management (GROW 360, Paris). "
+        "Capable de structurer une demarche produit et de la decliner en actions "
+        "marketing concretes sur des marches multiculturels."
     ),
     "digital_marketing": (
         "MBA Business Unit en cours (PSB Paris, juin 2026). Experience operationnelle "
-        "en community management (GROW 360) et gestion de projets digitaux a "
-        "l'international (Lisbonne). Maitrise des leviers d'engagement et lecture "
-        "rigoureuse des KPIs marketing."
+        "en community management (GROW 360) et projets digitaux a l'international "
+        "(Lisbonne). Maitrise des leviers d'engagement et lecture rigoureuse des KPIs."
     ),
     "financial_analyst": (
-        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026), avec module "
-        "approfondi de controle de gestion. Pilote au quotidien une activite "
-        "operationnelle generant 360 KEUR de CA mensuel : indicateurs, reporting, "
-        "lecture business des chiffres."
+        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026), module "
+        "controle de gestion. Pilote au quotidien une activite a 360 KEUR/mois : "
+        "indicateurs, reporting, lecture business des chiffres."
     ),
     "data_analyst": (
-        "MBA Business Unit en cours (PSB Paris, juin 2026), forme aux outils d'analyse "
-        "et au pilotage par la donnee. Manipule au quotidien des KPIs commerciaux et "
-        "sait traduire un dataset en insight actionnable pour les decideurs."
+        "MBA Business Unit en cours (PSB Paris, juin 2026). Pilotage quotidien de "
+        "KPIs commerciaux. Forme a l'analyse et au storytelling de donnees pour "
+        "traduire un dataset en insight actionnable."
     ),
     "purchasing": (
-        "MBA Business Unit en cours (PSB Paris, juin 2026). Experience concrete de "
-        "negociation B2B sur un portefeuille a 360 KEUR de CA mensuel. Profil "
-        "rigoureux, multilingue, transposable directement aux enjeux achats et "
-        "sourcing internationaux."
+        "MBA Business Unit en cours (PSB Paris, juin 2026). Negotiation Business "
+        "School certifie (2025). Experience de negociation B2B sur portefeuille "
+        "a 360 KEUR/mois, multilingue, transposable aux enjeux achats internationaux."
     ),
     "key_account": (
-        "Business Developer B2B chez Agence 113 / DEFI GROUPE (360 KEUR de CA mensuel). "
-        "MBA Manager de Business Unit en cours a PSB Paris. Profil hunter-farmer "
-        "rigoureux, multilingue, oriente partenariats strategiques de long terme."
+        "Business Developer B2B chez Agence 113 / DEFI GROUPE (360 KEUR/mois). "
+        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026). Profil "
+        "hunter-farmer, multilingue, oriente partenariats strategiques long terme."
     ),
     "business_dev": (
-        "Business Developer B2B chez Agence 113 / DEFI GROUPE, en charge d'un "
-        "portefeuille generant 360 KEUR de CA mensuel. MBA Manager de Business Unit "
-        "en cours (PSB Paris, juin 2026). Maitrise complete du cycle commercial, "
-        "des outils CRM (HubSpot, Sales Navigator) et de la negociation B2B."
+        "Business Developer B2B chez Agence 113 / DEFI GROUPE, 360 KEUR/mois. "
+        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026). Cycle "
+        "commercial complet, HubSpot CRM, Sales Navigator, negociation B2B."
     ),
     "sales": (
-        "Business Developer B2B chez Agence 113 / DEFI GROUPE (360 KEUR de CA mensuel) "
-        "et ex-Sales Advisor au Printemps Haussmann. MBA Manager de Business Unit en "
-        "cours a PSB Paris. Profil multilingue oriente resultats et relation client."
+        "Business Developer B2B chez Agence 113 / DEFI GROUPE (360 KEUR/mois) "
+        "et ex-Sales Advisor Printemps Haussmann. MBA Manager de Business Unit en "
+        "cours a PSB Paris. Profil multilingue oriente resultats."
     ),
     "hr": (
-        "Recruitment Officer chez Agence 113 / DEFI GROUPE : 300+ candidats geres en "
-        "evenements, coordination POEI, sourcing actif. Double competence RH/Business "
-        "rare, renforcee par le MBA Manager de Business Unit en cours a PSB Paris."
+        "Recruitment Officer chez Agence 113 / DEFI GROUPE : 300+ candidats geres, "
+        "coordination POEI, sourcing actif. Double competence RH/business, renforcee "
+        "par le MBA Manager de Business Unit en cours (PSB Paris, juin 2026)."
     ),
     "generic": (
         "Profil junior ambitieux : MBA Manager de Business Unit en cours (PSB Paris, "
-        "juin 2026), Business Developer B2B en France (360 KEUR de CA mensuel), "
-        "experience internationale a Lisbonne, multilingue (FR/AR natifs, EN courant)."
+        "juin 2026), Business Developer B2B (360 KEUR/mois), experience internationale "
+        "Lisbonne, multilingue (FR/AR natifs, EN courant)."
     ),
 }
 
 
-# ─── Experiences reelles ──────────────────────────────────────────────────────
+# ─── Experiences reelles — bullets compacts (<= 72 chars) ────────────────────
 
 EXPERIENCES = [
     {
         "id":      "defi",
-        "title":   "Business Developer & Recruitment Officer (B2B)",
+        "title":   "Business Developer & Recruitment Officer",
         "company": "Agence 113 - DEFI GROUPE",
         "city":    "Paris",
         "period":  "Sept. 2025 - Present",
         "bullets": {
             "default": [
-                "Pilotage d'un portefeuille B2B generant 360 KEUR de CA mensuel : prospection, qualification, negociation, closing.",
-                "Suivi et fidelisation des clients via HubSpot CRM, optimisation continue de la performance.",
-                "Coordination du service POEI avec les acteurs France Travail et organisation d'evenements de recrutement.",
+                "Portefeuille B2B a 360 KEUR/mois : prospection, negociation, closing.",
+                "Suivi CRM HubSpot et optimisation de la performance commerciale.",
+                "Coordination POEI + events recrutement (300+ candidats par session).",
             ],
             "commerce": [
-                "Pilotage d'un portefeuille B2B a 360 KEUR de CA mensuel : prospection, qualification, negociation, closing en autonomie.",
-                "Construction et execution de plans de compte sur HubSpot CRM avec analyse de la performance commerciale.",
-                "Negociation directe avec les decideurs et structuration de partenariats long terme (cycle de vente complet).",
+                "Portefeuille B2B a 360 KEUR/mois : prospection, negociation, closing.",
+                "Plans de compte HubSpot, negociation directe avec les decideurs.",
+                "Structuration de partenariats long terme (cycle de vente complet).",
             ],
             "marketing": [
-                "Pilotage d'une activite a 360 KEUR de CA mensuel : analyse de la performance, lecture KPI, ajustement continu.",
-                "Conception et execution de demarches d'acquisition clients (prospection ciblee, contenu de demarchage).",
-                "Coordination avec les services internes (production, RH, communication) pour livrer une offre coherente.",
+                "Activite a 360 KEUR/mois : lecture KPI, ajustement, reporting.",
+                "Acquisition ciblee : prospection structuree et contenu de demarchage.",
+                "Coordination interne : production, RH, communication.",
             ],
             "finance": [
-                "Pilotage d'une activite a 360 KEUR de CA mensuel : suivi budgetaire, analyse de marges, reporting hebdomadaire.",
-                "Lecture business des indicateurs : volume, mix, prix, rentabilite par client et par offre.",
-                "Construction de dashboards Excel et coordination avec les services administratif et financier.",
+                "Activite a 360 KEUR/mois : suivi budgetaire, marges, reporting.",
+                "Lecture indicateurs : volume, mix, prix, rentabilite par client.",
+                "Dashboards Excel et coordination avec le service administratif.",
             ],
             "hr": [
-                "Organisation d'evenements de recrutement reunissant plus de 300 candidats par session (sourcing, qualification, accueil).",
-                "Coordination du service POEI (Preparation Operationnelle a l'Emploi) avec les acteurs France Travail.",
-                "Suivi des candidats et reporting des KPIs de recrutement aupres des managers business.",
+                "Events recrutement 300+ candidats : sourcing, qualification, accueil.",
+                "Coordination du service POEI avec les acteurs France Travail.",
+                "Reporting KPIs recrutement aupres des managers business.",
             ],
         },
     },
@@ -141,14 +148,12 @@ EXPERIENCES = [
         "period":  "2025",
         "bullets": {
             "default": [
-                "Gestion de projets web pour clients internationaux : prise de brief, conception, livraison.",
-                "Optimisation de l'experience utilisateur (UX) et de la performance de conversion.",
-                "Coordination en autonomie avec equipes et clients multiculturels en remote.",
+                "Projets web clients intl : brief, conception, livraison en autonomie.",
+                "Optimisation UX et conversion (analytics, A/B tests).",
             ],
             "marketing": [
-                "Pilotage de projets digitaux pour clients internationaux : brief, design, contenu, livraison.",
-                "Optimisation UX et performance de conversion (lecture analytics, tests A/B leger).",
-                "Adaptation des messages aux audiences locales (contexte multilingue et multiculturel).",
+                "Projets digitaux clients intl : brief, design, contenu, livraison.",
+                "Optimisation UX et conversion (analytics, A/B tests legers).",
             ],
         },
     },
@@ -160,9 +165,8 @@ EXPERIENCES = [
         "period":  "2024",
         "bullets": {
             "default": [
-                "Atteinte et depassement reguliers des objectifs de vente sur un environnement premium.",
-                "Service client haut de gamme et fidelisation d'une clientele internationale exigeante.",
-                "Conseil personnalise et up-selling sur des produits a forte valeur ajoutee.",
+                "Depassement regulier des objectifs sur environnement premium.",
+                "Fidelisation d'une clientele internationale exigeante.",
             ],
         },
     },
@@ -174,16 +178,14 @@ EXPERIENCES = [
         "period":  "2023 - 2024",
         "bullets": {
             "default": [
-                "Gestion editoriale des reseaux sociaux et pilotage de la strategie de contenu.",
-                "Organisation d'evenements clients et animation de la communaute.",
-                "Ajustement continu selon les KPIs d'engagement et de conversion.",
+                "Gestion editoriale reseaux sociaux et strategie de contenu.",
+                "Pilotage par les KPIs d'engagement et de conversion.",
             ],
         },
     },
 ]
 
 
-# Mapping role -> bullet variant a utiliser
 BULLET_VARIANT = {
     "product_marketing": "marketing",
     "digital_marketing": "marketing",
@@ -197,8 +199,7 @@ BULLET_VARIANT = {
     "generic":           "default",
 }
 
-
-# Quelles experiences mettre en premier selon le role
+# Priorite d'affichage des experiences selon le role
 ROLE_PRIORITY = {
     "product_marketing": ["wix", "grow", "defi", "printemps"],
     "digital_marketing": ["grow", "wix", "defi", "printemps"],
@@ -212,101 +213,104 @@ ROLE_PRIORITY = {
     "generic":           ["defi", "wix", "printemps", "grow"],
 }
 
+# Nombre de bullets a afficher selon la position dans la liste (1-indexed)
+BULLETS_PER_POSITION = [3, 2, 2, 2]
 
-# ─── Formation (donnees reelles) ──────────────────────────────────────────────
+
+# ─── Formation ────────────────────────────────────────────────────────────────
 
 EDUCATION = [
     ("MBA - Manager de Business Unit",
      "PSB Paris School of Business",
-     "Paris - 2025 / 2026",
+     "Paris  2025-2026",
      "Soutenance juin 2026"),
-    ("Bachelor Bac+3 - Developpement Commercial (REM)",
+    ("Bachelor Bac+3 - Developpement Commercial",
      "PSB Paris School of Business",
-     "Paris - 2022 / 2025",
+     "Paris  2022-2025",
      "Obtenu"),
-    ("Certification - Negociation Commerciale",
+    ("Certification Negociation Commerciale",
      "Negotiation Business School (en ligne)",
      "2025",
      "Certifie"),
-    ("Habilitation SST",
-     "Croix-Rouge Francaise - Paris",
-     "2024",
-     "Sauveteur Secouriste du Travail"),
+    ("Habilitation SST - Sauveteur Secouriste Travail",
+     "Croix-Rouge Francaise",
+     "Paris  2024",
+     ""),
 ]
 
 
-# ─── Competences cles par role (5 lignes) ─────────────────────────────────────
+# ─── Competences par role ─────────────────────────────────────────────────────
 
 SKILLS_BY_ROLE = {
     "product_marketing": [
-        "Strategie produit, positionnement, pricing (modules MBA)",
-        "Gestion de projets digitaux internationaux (Wix Lisbonne)",
-        "Community Management et strategie de contenu (GROW 360)",
+        "Strategie produit, positionnement, pricing (MBA)",
+        "Gestion de projets digitaux intl (Wix Lisbonne)",
+        "Community Management et contenu (GROW 360, Paris)",
         "Lecture KPI, taux de conversion, ROI marketing",
-        "Coordination cross-fonctionnelle (marketing / ventes / R&D)",
+        "Coordination marketing / ventes / R&D",
     ],
     "digital_marketing": [
         "Community Management et reseaux sociaux (GROW 360)",
-        "Pilotage de campagnes digitales et lecture KPI/ROI",
-        "Outils : Canva, Notion, suite Google, Wix",
-        "UX et performance de conversion (Wix Lisbonne)",
-        "Strategie de contenu multiculturelle et multilingue",
+        "Pilotage campagnes digitales et lecture KPI/ROI",
+        "Outils : Canva, Notion, Google Suite, Wix",
+        "UX et conversion (Wix Lisbonne)",
+        "Strategie de contenu multiculturelle",
     ],
     "financial_analyst": [
-        "Controle de gestion et lecture financiere (modules MBA)",
+        "Controle de gestion et lecture financiere (MBA)",
         "Pilotage de KPIs commerciaux a 360 KEUR/mois",
-        "Reporting, analyse d'ecarts, dashboards",
-        "Pack Office avance (Excel formules, TCD, recherches)",
+        "Reporting, analyse d'ecarts, dashboards Excel",
+        "Pack Office avance (TCD, formules, VBA)",
         "Rigueur analytique et orientation business",
     ],
     "data_analyst": [
-        "Analyse de donnees et pilotage par la donnee (MBA)",
+        "Analyse de donnees et pilotage KPIs (MBA)",
         "Gestion d'indicateurs commerciaux au quotidien",
-        "Excel avance, formation Power BI / Tableau",
+        "Excel avance, notions Power BI / Tableau",
         "Storytelling de donnees pour les decideurs",
         "Esprit critique et rigueur methodologique",
     ],
     "purchasing": [
-        "Negociation B2B (Negotiation Business School certifie)",
-        "Analyse de besoins et structuration de propositions",
-        "Multilinguisme : FR / AR natifs, EN courant, ES intermediaire",
+        "Negociation B2B (Negotiation Business School, 2025)",
+        "Analyse de besoins et structuration d'offres",
+        "Multilinguisme : FR/AR natifs, EN courant, ES inter.",
         "Pack Office avance et CRM HubSpot",
-        "Suivi de performance fournisseurs et reporting",
+        "Suivi de performance et reporting",
     ],
     "key_account": [
-        "Pilotage d'un portefeuille a 360 KEUR de CA mensuel",
+        "Portefeuille B2B a 360 KEUR/mois en autonomie",
         "Cycle commercial complet (prospection -> closing)",
         "HubSpot CRM, LinkedIn Sales Navigator",
         "Negotiation Business School (certifie 2025)",
         "Multilinguisme et adaptabilite culturelle",
     ],
     "business_dev": [
-        "Business Development B2B (360 KEUR de CA mensuel)",
-        "Cycle commercial complet : prospection -> closing",
+        "Business Development B2B (360 KEUR/mois)",
+        "Cycle commercial : prospection -> closing",
         "HubSpot CRM, LinkedIn Sales Navigator",
         "Negotiation Business School (certifie 2025)",
         "Multilinguisme : FR / AR / EN / ES",
     ],
     "sales": [
-        "Vente B2B et B2C premium (DEFI GROUPE et Printemps)",
-        "Atteinte et depassement reguliers d'objectifs",
+        "Vente B2B et B2C premium (DEFI + Printemps)",
+        "Depassement regulier d'objectifs commerciaux",
         "Negotiation Business School (certifie 2025)",
         "HubSpot CRM, LinkedIn Sales Navigator",
         "Multilinguisme et relation client haut de gamme",
     ],
     "hr": [
-        "Sourcing et recrutement (300+ candidats geres en evenements)",
+        "Recrutement : 300+ candidats geres en events",
         "Coordination POEI avec France Travail",
-        "Outils RH : Indeed, France Travail, LinkedIn",
-        "Animation d'evenements et conduite d'entretiens",
+        "Outils : Indeed, France Travail, LinkedIn",
+        "Animation d'evenements et entretiens",
         "Habilitation SST (Croix-Rouge Francaise)",
     ],
     "generic": [
-        "Cycle commercial complet et negociation B2B",
-        "Gestion de projets internationaux (Lisbonne)",
-        "Outils CRM : HubSpot, LinkedIn Sales Navigator",
-        "Pack Office avance et suite Google",
-        "Multilinguisme : FR / EN / AR / ES / ZH",
+        "Cycle commercial et negociation B2B",
+        "Gestion de projets intl (Lisbonne)",
+        "HubSpot CRM, LinkedIn Sales Navigator",
+        "Pack Office avance et Google Suite",
+        "FR / EN / AR / ES / ZH",
     ],
 }
 
@@ -320,79 +324,47 @@ LANGUAGES = [
 ]
 
 
-# ─── Helpers : nettoyage texte + extraction de mots-cles ──────────────────────
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _safe(text: str) -> str:
     if not text:
         return ""
     repl = {
-        "—": "-", "–": "-", "'": "'", "'": "'", '"': '"', '"': '"',
-        "…": "...", " ": " ", " ": " ", "•": "-", "→": "->", "▸": "-",
-        "€": "EUR", "œ": "oe", "Œ": "OE", "æ": "ae", "Æ": "AE",
+        "—": "-", "–": "-", "‘": "'", "’": "'",
+        "“": '"', "”": '"', "…": "...", " ": " ",
+        " ": " ", "•": "-", "→": "->", "▸": "-",
+        "€": "EUR", "œ": "oe", "Œ": "OE",
+        "æ": "ae", "Æ": "AE",
     }
     for k, v in repl.items():
         text = text.replace(k, v)
     return text
 
 
-# Mots a NE PAS reprendre dans le resume (trop generiques)
-_STOPWORDS = {
-    "vous", "serez", "etes", "etes", "etre", "avoir", "votre", "vos", "notre",
-    "nos", "dans", "avec", "pour", "sur", "par", "que", "qui", "des", "les",
-    "une", "des", "aux", "ses", "leurs", "leur", "missions", "mission",
-    "poste", "stage", "vie", "junior", "senior", "experience", "candidat",
-    "profil", "vous", "tres", "tres", "plus", "bien", "ainsi", "egalement",
-    "alors", "donc", "selon", "celui", "celle", "afin", "lors", "entre",
-    "vous serez", "h/f", "f/h", "h-f", "f-h", "francais", "anglais",
-    "competences", "competence", "cours", "merci", "international",
-    "international", "actuel", "futur", "futurs", "groupe", "equipe",
-    "equipes", "client", "clients", "pays", "ville", "duree", "12", "18",
-    "24", "mois", "annees",
-}
-
-
-def _extract_keywords(description: str, max_kw: int = 4) -> list:
-    """Extrait quelques mots-cles techniques/sectoriels de la mission."""
-    if not description:
-        return []
-    text = description.lower()
-    # Mots de 5+ chars, hors stopwords
-    words = re.findall(r"[a-zA-Zaaeeeeiiooouucc]{5,}", text)
-    seen = set()
-    out  = []
-    for w in words:
-        wl = w.lower()
-        if wl in _STOPWORDS or wl in seen:
-            continue
-        seen.add(wl)
-        out.append(w)
-        if len(out) >= max_kw:
-            break
-    return out
-
-
-def _dynamic_summary(role: str, offer: dict) -> str:
-    """Resume professionnel raffine avec 1-2 elements specifiques de l'offre."""
+def _dynamic_summary(role: str, offer: dict, analysis: dict) -> str:
+    """Resume adapte au role + quelques mots-cles de l'offre."""
     base = SUMMARY_BASE.get(role, SUMMARY_BASE["generic"])
 
-    # Ajout d'une ligne ciblee sur l'offre
-    titre      = (offer.get("titre") or "").strip()
-    entreprise = (offer.get("entreprise") or "").strip()
-    pays       = (offer.get("pays") or "").strip()
+    # Injecter 1-2 mots-cles actions de l'offre si coherents et non deja presents
+    actions = analysis.get("actions", [])
+    base_lower = base.lower()
+    injected = []
+    for kw in actions[:3]:
+        if kw.lower() not in base_lower:
+            injected.append(kw)
+        if len(injected) >= 2:
+            break
 
-    if titre and entreprise:
-        # Ne pas dupliquer "VIE" si deja dans le titre
-        position_str = f"position de {titre} chez {entreprise}"
-        location     = f" {pays}" if pays and pays not in ("N/A", "") else ""
-        targeted = f"Candidat a la {position_str}{location}."
-        return base + " " + targeted
+    if injected:
+        kws_str = ", ".join(injected)
+        base = base.rstrip(".") + f". Mots-cles offre : {kws_str}."
+
     return base
 
 
 # ─── QR Code ──────────────────────────────────────────────────────────────────
 
 def _make_qr_png(url: str) -> str:
-    """Genere un PNG temporaire du QR code, retourne le chemin."""
     try:
         import qrcode
     except ImportError:
@@ -408,7 +380,7 @@ def _make_qr_png(url: str) -> str:
     return path
 
 
-# ─── Generation PDF ───────────────────────────────────────────────────────────
+# ─── PDF class ────────────────────────────────────────────────────────────────
 
 class _CVPdf(FPDF):
     NAVY   = (15, 35, 85)
@@ -417,194 +389,207 @@ class _CVPdf(FPDF):
     LIGHT  = (245, 247, 250)
     DARK_X = (90, 90, 95)
 
+    # Tagline peut etre surchargee avant add_page()
+    tagline = "Business Developer | MBA Manager de Business Unit | VIE 2026"
+
     def header(self):
-        # Header bleu marine
         self.set_fill_color(*self.NAVY)
-        self.rect(0, 0, 210, 30, style="F")
+        self.rect(0, 0, 210, 29, style="F")
 
-        # Nom (gauche)
-        self.set_xy(15, 6)
-        self.set_font("Helvetica", "B", 17)
+        # Nom
+        self.set_xy(14, 5.5)
+        self.set_font("Helvetica", "B", 16)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 7, _safe(PROFILE["name"]), ln=1)
+        self.cell(0, 6.5, _safe(PROFILE["name"]), ln=1)
 
-        # Tagline
-        self.set_x(15)
-        self.set_font("Helvetica", "I", 9.5)
+        # Tagline adapte
+        self.set_x(14)
+        self.set_font("Helvetica", "I", 9)
         self.set_text_color(*self.GOLD)
-        self.cell(0, 5, _safe(PROFILE["tagline"]), ln=1)
+        self.cell(0, 4.5, _safe(self.tagline), ln=1)
 
-        # Contact ligne
-        self.set_x(15)
-        self.set_font("Helvetica", "", 9)
-        self.set_text_color(220, 225, 235)
-        contact_line = f"{PROFILE['phone']}  |  {PROFILE['email']}  |  {PROFILE['city']}"
-        self.cell(0, 5, _safe(contact_line), ln=1)
+        # Contact
+        self.set_x(14)
+        self.set_font("Helvetica", "", 8.5)
+        self.set_text_color(210, 220, 235)
+        contact = f"{PROFILE['phone']}  |  {PROFILE['email']}  |  {PROFILE['city']}"
+        self.cell(0, 4.5, _safe(contact), ln=1)
 
         # Bande doree
         self.set_fill_color(*self.GOLD)
-        self.rect(0, 30, 210, 1, style="F")
-
-        # Reset Y pour le contenu
-        self.set_y(34)
+        self.rect(0, 29, 210, 0.8, style="F")
+        self.set_y(32)
 
     def footer(self):
-        # Trait dore + ligne discrete
-        self.set_y(-11)
+        self.set_y(-10)
         self.set_fill_color(*self.GOLD)
-        self.rect(0, 286, 210, 0.5, style="F")
-        self.set_y(-9)
-        self.set_x(15)
-        self.set_font("Helvetica", "I", 7.5)
-        self.set_text_color(140, 140, 145)
-        self.cell(0, 4, _safe(f"{PROFILE['name']}  |  {PROFILE['phone']}  |  {PROFILE['email']}"),
+        self.rect(0, 285, 210, 0.4, style="F")
+        self.set_y(-8.5)
+        self.set_x(14)
+        self.set_font("Helvetica", "I", 7)
+        self.set_text_color(150, 150, 155)
+        self.cell(0, 3.5,
+                  _safe(f"{PROFILE['name']}  |  {PROFILE['phone']}  |  {PROFILE['email']}"),
                   align="C")
 
     def section(self, title: str):
-        self.ln(1)
-        self.set_x(15)
-        self.set_font("Helvetica", "B", 11)
+        self.ln(0.8)
+        self.set_x(14)
+        self.set_font("Helvetica", "B", 10.5)
         self.set_text_color(*self.NAVY)
-        self.cell(0, 6, _safe(title.upper()), ln=1)
-        # Trait dore
-        x, y = 15, self.get_y()
+        self.cell(0, 5.5, _safe(title.upper()), ln=1)
+        x, y = 14, self.get_y()
         self.set_fill_color(*self.GOLD)
-        self.rect(x, y - 0.5, 22, 0.7, style="F")
-        self.set_y(y + 0.5)
+        self.rect(x, y - 0.4, 20, 0.6, style="F")
+        self.set_y(y + 0.4)
 
-    def paragraph(self, text: str, font_size: float = 9.5):
-        self.set_x(15)
+    def paragraph(self, text: str, font_size: float = 8.8):
+        self.set_x(14)
         self.set_font("Helvetica", "", font_size)
         self.set_text_color(*self.GREY)
-        self.multi_cell(180, 4.5, _safe(text))
-        self.ln(0.5)
+        self.multi_cell(182, 4.0, _safe(text))
+        self.ln(0.3)
 
     def experience_item(self, title: str, period: str, sub: str, bullets: list):
-        self.set_x(15)
-        self.set_font("Helvetica", "B", 10)
-        self.set_text_color(*self.NAVY)
-        self.cell(120, 5, _safe(title), ln=0)
-        self.set_font("Helvetica", "", 8.5)
-        self.set_text_color(*self.DARK_X)
-        self.cell(0, 5, _safe(period), align="R", ln=1)
-
-        self.set_x(15)
-        self.set_font("Helvetica", "I", 9)
-        self.set_text_color(*self.GREY)
-        self.cell(0, 4.5, _safe(sub), ln=1)
-
-        self.set_font("Helvetica", "", 9)
-        self.set_text_color(*self.GREY)
-        for b in bullets:
-            self.set_x(17)
-            self.cell(3, 4, "-")
-            self.multi_cell(176, 4, _safe(b))
-        self.ln(1)
-
-    def education_item(self, title: str, school: str, period: str, note: str):
-        self.set_x(15)
+        self.set_x(14)
         self.set_font("Helvetica", "B", 9.5)
         self.set_text_color(*self.NAVY)
-        self.cell(140, 4.5, _safe(title), ln=0)
-        self.set_font("Helvetica", "", 8.5)
+        self.cell(120, 4.5, _safe(title), ln=0)
+        self.set_font("Helvetica", "", 8)
         self.set_text_color(*self.DARK_X)
         self.cell(0, 4.5, _safe(period), align="R", ln=1)
 
-        self.set_x(15)
-        self.set_font("Helvetica", "", 9)
+        self.set_x(14)
+        self.set_font("Helvetica", "I", 8.5)
         self.set_text_color(*self.GREY)
-        line = school
-        if note:
-            line += f"  -  {note}"
-        self.cell(0, 4.2, _safe(line), ln=1)
-        self.ln(0.3)
+        self.cell(0, 3.8, _safe(sub), ln=1)
+
+        self.set_font("Helvetica", "", 8.7)
+        self.set_text_color(*self.GREY)
+        for b in bullets:
+            self.set_x(16)
+            self.cell(3, 3.8, "-")
+            self.multi_cell(178, 3.8, _safe(b))
+        self.ln(0.6)
+
+    def education_item(self, title: str, school: str, period: str, note: str):
+        self.set_x(14)
+        self.set_font("Helvetica", "B", 9)
+        self.set_text_color(*self.NAVY)
+        self.cell(140, 4.0, _safe(title), ln=0)
+        self.set_font("Helvetica", "", 8)
+        self.set_text_color(*self.DARK_X)
+        self.cell(0, 4.0, _safe(period), align="R", ln=1)
+
+        self.set_x(14)
+        self.set_font("Helvetica", "", 8.5)
+        self.set_text_color(*self.GREY)
+        line = school + (f"  -  {note}" if note else "")
+        self.cell(0, 3.7, _safe(line), ln=1)
 
     def two_columns_skills_languages(self, skills: list, languages: list):
-        """Affiche competences (gauche) et langues (droite) sur la meme zone."""
+        """Competences (gauche) | Langues (droite) — 2 colonnes independantes."""
         start_y = self.get_y()
-        col_w   = 87  # Largeur de chaque colonne
+        col_w   = 86
 
-        # ─ Colonne gauche : Competences ─
-        self.set_xy(15, start_y)
-        self.set_font("Helvetica", "B", 11)
+        # Colonne gauche : Competences
+        self.set_xy(14, start_y)
+        self.set_font("Helvetica", "B", 10.5)
         self.set_text_color(*self.NAVY)
-        self.cell(col_w, 6, _safe("COMPETENCES CLES"), ln=2)
+        self.cell(col_w, 5.5, _safe("COMPETENCES CLES"), ln=2)
+        gy = self.get_y()
         self.set_fill_color(*self.GOLD)
-        self.rect(15, self.get_y() - 0.5, 22, 0.7, style="F")
-        self.set_y(self.get_y() + 1)
+        self.rect(14, gy - 0.4, 20, 0.6, style="F")
+        self.set_y(gy + 0.4)
 
-        self.set_font("Helvetica", "", 8.8)
+        self.set_font("Helvetica", "", 8.5)
         self.set_text_color(*self.GREY)
         for s in skills:
-            self.set_x(17)
-            self.cell(3, 4.2, "-")
-            # Limiter a la largeur de colonne
-            self.multi_cell(col_w - 5, 4.2, _safe(s))
+            self.set_x(16)
+            self.cell(3, 3.8, "-")
+            self.multi_cell(col_w - 5, 3.8, _safe(s))
         skills_end_y = self.get_y()
 
-        # ─ Colonne droite : Langues ─
-        self.set_xy(110, start_y)
-        self.set_font("Helvetica", "B", 11)
+        # Colonne droite : Langues
+        self.set_xy(108, start_y)
+        self.set_font("Helvetica", "B", 10.5)
         self.set_text_color(*self.NAVY)
-        self.cell(col_w, 6, _safe("LANGUES"), ln=2)
+        self.cell(col_w, 5.5, _safe("LANGUES"), ln=2)
+        ly = self.get_y()
         self.set_fill_color(*self.GOLD)
-        self.rect(110, self.get_y() - 0.5, 22, 0.7, style="F")
-        self.set_y(self.get_y() + 1)
+        self.rect(108, ly - 0.4, 20, 0.6, style="F")
+        self.set_y(ly + 0.4)
 
-        self.set_font("Helvetica", "", 8.8)
-        self.set_text_color(*self.GREY)
+        self.set_font("Helvetica", "", 8.5)
         for lang, level in languages:
-            self.set_x(110)
-            self.set_font("Helvetica", "B", 8.8)
+            self.set_x(108)
             self.set_text_color(*self.NAVY)
-            self.cell(28, 4.5, _safe(lang), ln=0)
-            self.set_font("Helvetica", "", 8.8)
+            self.set_font("Helvetica", "B", 8.5)
+            self.cell(28, 4.0, _safe(lang), ln=0)
+            self.set_font("Helvetica", "", 8.5)
             self.set_text_color(*self.GREY)
-            self.cell(0, 4.5, _safe(level), ln=1)
+            self.cell(0, 4.0, _safe(level), ln=1)
         langs_end_y = self.get_y()
 
-        # Aligner Y final sur le plus bas
-        self.set_y(max(skills_end_y, langs_end_y) + 2)
+        self.set_y(max(skills_end_y, langs_end_y) + 1.5)
 
-    def tools_strip(self):
-        self.set_x(15)
-        self.set_font("Helvetica", "B", 11)
+    def tools_strip(self, extra_tools: list = None):
+        self.set_x(14)
+        self.set_font("Helvetica", "B", 10.5)
         self.set_text_color(*self.NAVY)
-        self.cell(0, 6, _safe("OUTILS & DISPONIBILITE"), ln=1)
+        self.cell(0, 5.5, _safe("OUTILS & DISPONIBILITE"), ln=1)
+        y = self.get_y()
         self.set_fill_color(*self.GOLD)
-        self.rect(15, self.get_y() - 0.5, 22, 0.7, style="F")
-        self.ln(1)
+        self.rect(14, y - 0.4, 20, 0.6, style="F")
+        self.set_y(y + 0.4)
 
-        self.set_x(15)
-        self.set_font("Helvetica", "", 8.8)
+        base = (
+            "CRM : HubSpot, Sales Navigator  |  Marketing : Canva, Notion, Wix  |  "
+            "Bureautique : Excel avance, Google Suite  |  "
+            "Disponibilite : VIE 2026 (juin/juillet)  |  Mobilite : Permis B, remote OK"
+        )
+        if extra_tools:
+            unique = [t for t in extra_tools if t.lower() not in base.lower()][:3]
+            if unique:
+                base = base + "  |  " + ", ".join(unique)
+
+        self.set_x(14)
+        self.set_font("Helvetica", "", 8.3)
         self.set_text_color(*self.GREY)
-        text = ("CRM : HubSpot, LinkedIn Sales Navigator   |   Marketing : Canva, Notion, "
-                "Wix, Webflow   |   Bureautique : Pack Office (Excel avance), Google Suite   "
-                "|   Disponibilite : VIE 2026 (debut juin / juillet selon mission)   |   "
-                "Mobilite : Permis B, remote OK")
-        self.multi_cell(180, 4.2, _safe(text))
+        self.multi_cell(182, 3.8, _safe(base))
 
+
+# ─── Point d'entree ───────────────────────────────────────────────────────────
 
 def generate(offer: dict) -> bytes:
-    """Genere un CV PDF adapte a l'offre."""
+    """Genere un CV PDF adapte a l'offre. Garantit 1 page A4."""
     titre       = offer.get("titre", "")
     description = offer.get("description", "")
     role        = cl.detect_sub_role(titre, description)
 
+    # Analyse profonde de l'offre
+    analysis    = oa.analyze(offer)
+    extra_tools = analysis.get("tools", [])
+
+    # Tagline adapte
+    tagline = TAGLINE_BY_ROLE.get(role, TAGLINE_BY_ROLE["generic"])
+
     pdf = _CVPdf(format="A4")
-    pdf.set_auto_page_break(auto=False)  # Une seule page : controle manuel
+    pdf.set_auto_page_break(auto=False)
+    pdf.tagline = tagline
     pdf.add_page()
 
-    # ─── QR code (en haut a droite, par dessus le header) ───
-    qr_url = (PROFILE.get("qr_url") or "").strip()
+    # QR code (priorise video_cv_url si disponible)
+    qr_url = (PROFILE.get("video_cv_url") or PROFILE.get("qr_url") or "").strip()
+    qr_label = "Mon CV video" if PROFILE.get("video_cv_url") else PROFILE.get("qr_label", "")
     qr_path = _make_qr_png(qr_url) if qr_url else ""
     if qr_path:
         try:
-            pdf.image(qr_path, x=180, y=4.5, w=21, h=21)
-            pdf.set_xy(180, 25.5)
-            pdf.set_font("Helvetica", "B", 6)
+            pdf.image(qr_path, x=179, y=4, w=20, h=20)
+            pdf.set_xy(179, 24)
+            pdf.set_font("Helvetica", "B", 5.5)
             pdf.set_text_color(*pdf.GOLD)
-            pdf.cell(21, 3, _safe(PROFILE.get("qr_label") or ""), align="C")
+            pdf.cell(20, 3, _safe(qr_label), align="C")
         except Exception:
             pass
         finally:
@@ -613,34 +598,37 @@ def generate(offer: dict) -> bytes:
             except Exception:
                 pass
 
-    # ─── Profil ───
+    # Profil
     pdf.section("Profil")
-    pdf.paragraph(_dynamic_summary(role, offer), font_size=9.2)
+    pdf.paragraph(_dynamic_summary(role, offer, analysis), font_size=8.7)
 
-    # ─── Experience professionnelle ───
+    # Experiences — ordonnees par pertinence, bullets limites par position
     pdf.section("Experience professionnelle")
     variant = BULLET_VARIANT.get(role, "default")
     order   = ROLE_PRIORITY.get(role, ROLE_PRIORITY["generic"])
     by_id   = {e["id"]: e for e in EXPERIENCES}
-    for exp_id in order:
+    for pos, exp_id in enumerate(order):
         exp = by_id.get(exp_id)
         if not exp:
             continue
-        bullets = exp["bullets"].get(variant) or exp["bullets"]["default"]
-        sub     = f"{exp['company']}   |   {exp['city']}"
+        n_bullets  = BULLETS_PER_POSITION[pos] if pos < len(BULLETS_PER_POSITION) else 2
+        all_bullets = exp["bullets"].get(variant) or exp["bullets"]["default"]
+        bullets    = all_bullets[:n_bullets]
+        sub        = f"{exp['company']}   |   {exp['city']}"
         pdf.experience_item(exp["title"], exp["period"], sub, bullets)
 
-    # ─── Formation ───
+    # Formation
     pdf.section("Formation")
     for title, school, period, note in EDUCATION:
         pdf.education_item(title, school, period, note)
 
-    # ─── Competences + Langues (2 colonnes) ───
+    # Competences + Langues (2 colonnes)
+    pdf.ln(0.8)
     skills = SKILLS_BY_ROLE.get(role, SKILLS_BY_ROLE["generic"])
     pdf.two_columns_skills_languages(skills, LANGUAGES)
 
-    # ─── Outils + dispo (strip horizontal) ───
-    pdf.tools_strip()
+    # Outils + dispo
+    pdf.tools_strip(extra_tools)
 
     out = pdf.output(dest="S")
     if isinstance(out, str):
