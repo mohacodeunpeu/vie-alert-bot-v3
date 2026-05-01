@@ -17,6 +17,7 @@ import scorer
 import apply_log
 
 AUTO_APPLY_ENABLED = os.environ.get("AUTO_APPLY", "true").lower() == "true"
+MAX_DAILY_APPLIES  = 3   # mode sniper : 3 candidatures max / jour
 
 
 def setup_logging() -> None:
@@ -66,29 +67,47 @@ def save_seen(seen: set, timestamps: dict) -> None:
         logger.error("[SEEN] Impossible de sauvegarder: %s", e)
 
 
+def _today() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def _can_apply_today(daily_applies: dict) -> bool:
+    return daily_applies.get(_today(), 0) < MAX_DAILY_APPLIES
+
+
+def _increment_daily(daily_applies: dict) -> None:
+    today = _today()
+    daily_applies[today] = daily_applies.get(today, 0) + 1
+
+
 def run() -> None:
     setup_logging()
     logger.info("=" * 55)
-    logger.info("Bot VIE demarre")
+    logger.info("Bot VIE demarre — mode SNIPER")
+    logger.info("Seuil auto-apply: %d | Review: %d-%d | Max/jour: %d",
+                scorer.APPLY_THRESHOLD, scorer.REVIEW_THRESHOLD,
+                scorer.APPLY_THRESHOLD - 1, MAX_DAILY_APPLIES)
     logger.info("Intervalle: %d-%ds | Auto-candidature: %s",
                 config.MIN_INTERVAL, config.MAX_INTERVAL,
                 "ACTIVE" if AUTO_APPLY_ENABLED else "DESACTIVEE")
     logger.info("=" * 55)
 
-    # Pas de spam Discord a chaque restart Railway — on log seulement
     logger.info("[DISCORD] Demarrage silencieux (pas de notif)")
 
     seen_ids: set    = load_seen()
     timestamps: dict = {k: "" for k in seen_ids}
     logger.info("[SEEN] %d IDs deja connus", len(seen_ids))
 
-    first_run = len(seen_ids) == 0
-    cycle = 0
+    first_run      = len(seen_ids) == 0
+    cycle          = 0
+    daily_applies: dict = {}   # {"2026-05-01": 2, ...}
 
     while True:
         cycle += 1
         t0 = time.time()
-        logger.info("[CYCLE #%d] Debut @ %s", cycle, datetime.now().strftime("%H:%M:%S"))
+        logger.info("[CYCLE #%d] Debut @ %s | Applies aujourd'hui: %d/%d",
+                    cycle, datetime.now().strftime("%H:%M:%S"),
+                    daily_applies.get(_today(), 0), MAX_DAILY_APPLIES)
 
         try:
             offers     = scraper.fetch_offers()
@@ -111,8 +130,9 @@ def run() -> None:
                 _wait_next(cycle)
                 continue
 
-            sent     = 0
-            applied  = 0
+            sent    = 0
+            applied = 0
+            reviewed = 0
             skipped  = 0
 
             for offer in new_offers:
@@ -124,34 +144,54 @@ def run() -> None:
                     sent += 1
                     save_seen(seen_ids, timestamps)
 
-                # 2. Postuler uniquement si offre cible (filtre geo/secteur + score)
-                if AUTO_APPLY_ENABLED:
-                    ok, reason = filters.should_apply(offer)
-                    if not ok:
-                        skipped += 1
-                        logger.info("[FILTER] Skip apply: %s | %s",
-                                    reason, offer.get("titre", "")[:60])
-                        continue
+                # 2. Filtrer + scorer + postuler
+                if not AUTO_APPLY_ENABLED:
+                    continue
 
-                    # Scoring /100 — postuler seulement si >= seuil
-                    score_result = scorer.score_offer(offer)
-                    if not score_result["should_apply"]:
-                        skipped += 1
-                        logger.info("[SCORE] Skip (score=%d<%d) | %s | %s",
-                                    score_result["total"],
-                                    scorer.APPLY_THRESHOLD,
-                                    offer.get("pays", ""),
-                                    offer.get("titre", "")[:50])
-                        continue
+                ok, reason = filters.should_apply(offer)
+                if not ok:
+                    skipped += 1
+                    logger.info("[FILTER] Skip: %s | %s",
+                                reason, offer.get("titre", "")[:60])
+                    continue
 
-                    success = auto_apply.apply_offer(offer)
-                    apply_log.log_application(offer, score_result, success)
-                    if success:
-                        applied += 1
+                score_result = scorer.score_offer(offer)
+                total = score_result["total"]
+
+                # Score trop bas : skip complet
+                if total < scorer.REVIEW_THRESHOLD:
+                    skipped += 1
+                    continue
+
+                # Score en zone review (68-79) : log sans postuler
+                if score_result["should_review"]:
+                    apply_log.log_pending(offer, score_result)
+                    reviewed += 1
+                    logger.info("[SNIPER] Review (score=%d) | %s | %s | missions=%s",
+                                total, offer.get("pays", ""),
+                                offer.get("titre", "")[:45],
+                                ",".join(score_result.get("matched_missions", [])[:2]) or "-")
+                    continue
+
+                # Score >= 80 : candidature sniper
+                if not _can_apply_today(daily_applies):
+                    apply_log.log_pending(offer, score_result)
+                    logger.info("[SNIPER] Limite jour atteinte (%d/%d), queued | score=%d | %s",
+                                daily_applies.get(_today(), 0), MAX_DAILY_APPLIES,
+                                total, offer.get("titre", "")[:45])
+                    continue
+
+                success = auto_apply.apply_offer(offer)
+                apply_log.log_application(offer, score_result, success)
+                _increment_daily(daily_applies)
+                if success:
+                    applied += 1
 
             elapsed = round(time.time() - t0, 1)
-            logger.info("[CYCLE #%d] Termine en %ss | Discord: %d | Candidatures: %d | Skips: %d | Total vus: %d",
-                        cycle, elapsed, sent, applied, skipped, len(seen_ids))
+            logger.info(
+                "[CYCLE #%d] %ss | Discord: %d | Applied: %d | Review: %d | Skip: %d | Vu total: %d",
+                cycle, elapsed, sent, applied, reviewed, skipped, len(seen_ids)
+            )
 
         except KeyboardInterrupt:
             logger.info("Arret demande")
