@@ -2,9 +2,9 @@
 Scoring des offres VIE /100 — mode sniper.
 Score = role_fit (0-40) + pays (0-30) + industrie (0-30) + mission_fit bonus (0-10), cap 100.
 Seuils :
-  >= 70 : auto-candidature (sniper)
-  55-69 : log pour review manuelle
-  <  55 : skip
+  >= 50 : auto-candidature
+  35-49 : log pour review manuelle
+  <  35 : skip
 """
 
 import logging
@@ -13,8 +13,8 @@ from cover_letter import detect_sub_role
 
 logger = logging.getLogger(__name__)
 
-APPLY_THRESHOLD  = 70   # sniper : auto-apply
-REVIEW_THRESHOLD = 55   # log only, review possible
+APPLY_THRESHOLD  = 50   # auto-apply
+REVIEW_THRESHOLD = 35   # log only, review possible
 
 
 # ─── Fit rôle ────────────────────────────────────────────────────────────────
