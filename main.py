@@ -17,7 +17,7 @@ import scorer
 import apply_log
 
 AUTO_APPLY_ENABLED = os.environ.get("AUTO_APPLY", "true").lower() == "true"
-MAX_DAILY_APPLIES  = 5   # mode sniper : 5 candidatures max / jour
+MAX_DAILY_APPLIES  = 15  # 15 candidatures max / jour
 
 
 def setup_logging() -> None:

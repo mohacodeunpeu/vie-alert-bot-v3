@@ -43,17 +43,14 @@ EXCLUDED_COUNTRIES = {
     "guinee equatoriale", "guinée équatoriale", "togo", "benin", "bénin",
     "djibouti", "somalie", "somalia", "erythree", "érythrée", "eritrea",
     "libye", "libya", "mauritanie", "mauritania",
-    # Europe (incluant UK, Suisse, Norvège même hors UE)
-    # NOTE : Espagne et Portugal volontairement gardes ELIGIBLES
-    # (espagnol intermediaire + experience Lisbonne = avantages directs)
+    # Europe (sauf ES/PT/CH/UK — gardes eligibles car bien payes ou avantage linguistique)
+    # NOTE : Espagne + Portugal = espagnol intermediaire + experience Lisbonne
+    # NOTE : Suisse + UK = VIE 2500-4000€/mois, meilleurs salaires Europe
     "france", "allemagne", "germany", "italie", "italy",
     "belgique", "belgium", "pays-bas", "pays bas", "netherlands",
-    "luxembourg", "suisse", "switzerland", "autriche", "austria",
+    "luxembourg", "autriche", "austria",
     "danemark", "denmark", "suede", "suède", "sweden", "norvege", "norvège",
     "norway", "finlande", "finland", "irlande", "ireland",
-    "royaume-uni", "royaume uni", "united kingdom", "uk", "angleterre",
-    "england", "ecosse", "écosse", "scotland", "pays de galles", "wales",
-    "irlande du nord", "northern ireland",
     "pologne", "poland", "republique tcheque", "république tchèque",
     "czech republic", "tcheque", "tchèque", "czechia",
     "hongrie", "hungary", "roumanie", "romania", "bulgarie", "bulgaria",
@@ -69,6 +66,9 @@ EXCLUDED_COUNTRIES = {
 }
 
 
+MIN_SALARY = 1200  # indemnite minimale EUR/mois (0 = pas de filtre)
+
+
 def _norm(s: str) -> str:
     return (s or "").strip().lower()
 
@@ -82,13 +82,19 @@ def should_apply(offer: dict) -> tuple[bool, str]:
     secteur = _norm(offer.get("secteur"))
     pays    = _norm(offer.get("pays"))
 
-    # 1. Region : skip Afrique + Europe
+    # 1. Region : skip Afrique + Europe (sauf ES/PT/CH/UK)
     if pays:
         for excluded in EXCLUDED_COUNTRIES:
             if excluded in pays:
                 return False, f"pays exclu ({pays})"
 
-    # 2. Secteur : doit matcher commerce/finance/marketing
+    # 2. Salaire minimum
+    if MIN_SALARY > 0:
+        salaire = offer.get("salaire", 0) or 0
+        if salaire > 0 and salaire < MIN_SALARY:
+            return False, f"salaire trop bas ({salaire}€ < {MIN_SALARY}€)"
+
+    # 3. Secteur : doit matcher commerce/finance/marketing
     haystack = f"{titre} {secteur}"
     if not any(kw in haystack for kw in SECTOR_KEYWORDS):
         return False, f"secteur hors cible (titre={titre[:60]})"
