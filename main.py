@@ -18,6 +18,9 @@ import apply_log
 
 AUTO_APPLY_ENABLED = os.environ.get("AUTO_APPLY", "true").lower() == "true"
 MAX_DAILY_APPLIES  = 15  # 15 candidatures max / jour
+# Budget temps d'un run (GitHub Actions). 0 = boucle infinie (worker classique).
+MAX_RUNTIME_SEC    = int(os.environ.get("MAX_RUNTIME_SEC", "0"))
+_START_TS = time.time()
 
 
 def setup_logging() -> None:
@@ -211,6 +214,10 @@ def run() -> None:
 
 
 def _wait_next(cycle: int) -> None:
+    if MAX_RUNTIME_SEC and (time.time() - _START_TS) >= MAX_RUNTIME_SEC:
+        logger.info("[EXIT] Budget de %ds atteint - fin du run (relance par cron)",
+                    MAX_RUNTIME_SEC)
+        raise SystemExit(0)
     wait = random.uniform(config.MIN_INTERVAL, config.MAX_INTERVAL)
     logger.info("[CYCLE #%d] Prochain cycle dans %.0fs", cycle, wait)
     try:
