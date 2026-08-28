@@ -17,7 +17,7 @@ import scorer
 import apply_log
 
 AUTO_APPLY_ENABLED = os.environ.get("AUTO_APPLY", "true").lower() == "true"
-MAX_DAILY_APPLIES  = 15  # 15 candidatures max / jour
+MAX_DAILY_APPLIES  = int(os.environ.get("MAX_DAILY_APPLIES", "15"))
 # Budget temps d'un run (GitHub Actions). 0 = boucle infinie (worker classique).
 MAX_RUNTIME_SEC    = int(os.environ.get("MAX_RUNTIME_SEC", "0"))
 _START_TS = time.time()
@@ -74,13 +74,17 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
-def _can_apply_today(daily_applies: dict) -> bool:
-    return daily_applies.get(_today(), 0) < MAX_DAILY_APPLIES
+def _applies_today() -> int:
+    """Compteur PERSISTANT (applied_log.json), pas une variable memoire.
+
+    Le bot peut etre relance en boucle (cron / redeploy) : un compteur en
+    memoire remettrait le quota a zero a chaque run.
+    """
+    return apply_log.count_today()
 
 
-def _increment_daily(daily_applies: dict) -> None:
-    today = _today()
-    daily_applies[today] = daily_applies.get(today, 0) + 1
+def _can_apply_today() -> bool:
+    return _applies_today() < MAX_DAILY_APPLIES
 
 
 def run() -> None:
@@ -95,6 +99,9 @@ def run() -> None:
                 "ACTIVE" if AUTO_APPLY_ENABLED else "DESACTIVEE")
     logger.info("=" * 55)
 
+    if not discord_notif.is_configured():
+        logger.error("[DISCORD] DISCORD_WEBHOOK_URL absent — aucune alerte ne partira. "
+                     "Definis le secret/variable d'environnement.")
     logger.info("[DISCORD] Demarrage silencieux (pas de notif)")
 
     seen_ids: set    = load_seen()
@@ -103,14 +110,13 @@ def run() -> None:
 
     first_run      = len(seen_ids) == 0
     cycle          = 0
-    daily_applies: dict = {}   # {"2026-05-01": 2, ...}
 
     while True:
         cycle += 1
         t0 = time.time()
         logger.info("[CYCLE #%d] Debut @ %s | Applies aujourd'hui: %d/%d",
                     cycle, datetime.now().strftime("%H:%M:%S"),
-                    daily_applies.get(_today(), 0), MAX_DAILY_APPLIES)
+                    _applies_today(), MAX_DAILY_APPLIES)
 
         try:
             offers     = scraper.fetch_offers()
@@ -139,12 +145,18 @@ def run() -> None:
             skipped  = 0
 
             for offer in new_offers:
+                cid = offer["composite_id"]
+
                 # 1. Notifier sur Discord (TOUTES les offres, sans filtre)
-                if discord_notif.send_offer(offer):
-                    cid = offer["composite_id"]
+                notified = discord_notif.send_offer(offer)
+                if notified:
+                    sent += 1
+                # On marque l'offre comme vue si la notif est partie OU si le
+                # webhook n'est pas configure : sinon le bot renotifie la meme
+                # offre a chaque cycle, indefiniment.
+                if notified or not discord_notif.is_configured():
                     seen_ids.add(cid)
                     timestamps[cid] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    sent += 1
                     save_seen(seen_ids, timestamps)
 
                 # 2. Filtrer + scorer + postuler
@@ -166,7 +178,7 @@ def run() -> None:
                     skipped += 1
                     continue
 
-                # Score en zone review (68-79) : log sans postuler
+                # Score en zone review : log sans postuler
                 if score_result["should_review"]:
                     apply_log.log_pending(offer, score_result)
                     reviewed += 1
@@ -176,17 +188,16 @@ def run() -> None:
                                 ",".join(score_result.get("matched_missions", [])[:2]) or "-")
                     continue
 
-                # Score >= 80 : candidature sniper
-                if not _can_apply_today(daily_applies):
+                # Score >= seuil : candidature sniper
+                if not _can_apply_today():
                     apply_log.log_pending(offer, score_result)
                     logger.info("[SNIPER] Limite jour atteinte (%d/%d), queued | score=%d | %s",
-                                daily_applies.get(_today(), 0), MAX_DAILY_APPLIES,
+                                _applies_today(), MAX_DAILY_APPLIES,
                                 total, offer.get("titre", "")[:45])
                     continue
 
                 success = auto_apply.apply_offer(offer)
                 apply_log.log_application(offer, score_result, success)
-                _increment_daily(daily_applies)
                 if success:
                     applied += 1
 
@@ -201,6 +212,9 @@ def run() -> None:
             break
         except Exception as e:
             logger.error("[CYCLE #%d] Erreur inattendue: %s", cycle, e, exc_info=True)
+            if MAX_RUNTIME_SEC and (time.time() - _START_TS) >= MAX_RUNTIME_SEC:
+                logger.info("[EXIT] Budget atteint apres erreur — fin du run")
+                raise SystemExit(1)
             logger.info("Attente 60s avant de reprendre...")
             try:
                 time.sleep(60)
