@@ -48,7 +48,15 @@ def _build_embed(offer: dict) -> dict:
     }
 
 
+def is_configured() -> bool:
+    """True si un webhook Discord est bien defini dans l'environnement."""
+    return bool(config.DISCORD_WEBHOOK_URL)
+
+
 def _post(payload: dict, retries: int = 3) -> bool:
+    if not is_configured():
+        logger.error("[DISCORD] DISCORD_WEBHOOK_URL non defini — notification ignoree")
+        return False
     for attempt in range(1, retries + 1):
         try:
             resp = requests.post(config.DISCORD_WEBHOOK_URL, json=payload, timeout=10)
@@ -82,6 +90,9 @@ def send_offer(offer: dict) -> bool:
 
 
 def send_startup() -> None:
+    if not is_configured():
+        logger.error("[DISCORD] DISCORD_WEBHOOK_URL non defini — demarrage non notifie")
+        return
     payload = {
         "embeds": [{
             "title":       "Bot VIE demarre",
