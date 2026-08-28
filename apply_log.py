@@ -1,7 +1,7 @@
 """
 Logging persistant des candidatures et de la file de review.
-- applied_log.json  : candidatures envoyees (score >= 80)
-- pending_review.json : offres a evaluer manuellement (score 68-79)
+- applied_log.json    : candidatures envoyees (score >= scorer.APPLY_THRESHOLD)
+- pending_review.json : offres a evaluer manuellement (zone review)
 Structure ready pour future tracking des reponses recruteurs.
 """
 
@@ -76,8 +76,21 @@ def log_application(offer: dict, score_result: dict, success: bool) -> None:
                 ",".join(entry["matched_missions"][:2]) or "-")
 
 
+def count_today() -> int:
+    """Nombre de candidatures ENVOYEES aujourd'hui (source: applied_log.json).
+
+    Persistant entre les runs : indispensable quand le bot tourne par cron,
+    sinon le quota journalier est remis a zero a chaque execution.
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+    return sum(
+        1 for r in _read_json(LOG_FILE)
+        if str(r.get("date", "")).startswith(today) and r.get("status") == "applied"
+    )
+
+
 def log_pending(offer: dict, score_result: dict) -> None:
-    """Append une offre 68-79 dans pending_review.json pour review manuelle."""
+    """Append une offre en zone review dans pending_review.json."""
     entry = _build_entry(offer, score_result)
     entry["success"] = None
     entry["status"]  = "pending_review"
