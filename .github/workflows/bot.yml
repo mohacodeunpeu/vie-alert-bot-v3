@@ -1,7 +1,9 @@
 name: Bot VIE
 
-# Le bot ne tourne plus sur Railway : il est execute par ce cron.
-# Chaque run boucle pendant MAX_RUNTIME_SEC puis s'arrete proprement.
+# Un seul workflow : il rafraichit le token SI besoin, puis lance le bot.
+# Motif : les deux crons GitHub sont throttles independamment (le refresh
+# */50 tournait en realite toutes les 8-10h), donc le bot se retrouvait avec
+# un token expire et prenait des HTTP 401 la majorite du temps.
 on:
   schedule:
     - cron: '*/5 * * * *'
@@ -17,7 +19,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -43,12 +45,47 @@ jobs:
           restore-keys: |
             vie-state-
 
+      - name: Token encore valide ?
+        id: tok
+        env:
+          TOKEN_EXPIRES_AT: ${{ vars.VIE_TOKEN_EXPIRES_AT }}
+        run: |
+          python - <<'PY'
+          import os, time
+          raw = (os.environ.get("TOKEN_EXPIRES_AT") or "").strip()
+          try:
+              exp = float(raw or 0)
+          except ValueError:
+              exp = 0.0
+          left = int(exp - time.time())
+          print(f"Token restant: {left}s")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"need_refresh={'true' if left < 1200 else 'false'}\n")
+          PY
+
+      - name: Rafraichir le token (Playwright)
+        if: steps.tok.outputs.need_refresh == 'true'
+        continue-on-error: true
+        env:
+          MS_EMAIL:           ${{ secrets.MS_EMAIL }}
+          MS_PASSWORD:        ${{ secrets.MS_PASSWORD }}
+          GMAIL_ADDRESS:      ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GH_PAT:             ${{ secrets.GH_PAT }}
+          GITHUB_REPO:        ${{ github.repository }}
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python playwright_login.py
+
+      # GH_PAT plutot que les valeurs de vars : le contexte `vars` est fige au
+      # demarrage du run, donc il contiendrait encore l'ancien token. auth.py
+      # relit les Repository Variables via l'API a chaque cycle.
       - name: Lancer le bot
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          ACCESS_TOKEN:        ${{ vars.VIE_ACCESS_TOKEN }}
-          REFRESH_TOKEN:       ${{ vars.VIE_REFRESH_TOKEN }}
-          TOKEN_EXPIRES_AT:    ${{ vars.VIE_TOKEN_EXPIRES_AT }}
+          GH_PAT:              ${{ secrets.GH_PAT }}
+          GITHUB_REPO:         ${{ github.repository }}
           AUTO_APPLY:          'true'
           MAX_DAILY_APPLIES:   '15'
           MAX_RUNTIME_SEC:     '240'
