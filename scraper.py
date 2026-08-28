@@ -154,6 +154,7 @@ def _fetch_civiweb() -> list[dict]:
         items = data.get("result") or data.get("results") or []
         total_count = int(data.get("count") or total_count)
 
+        before = len(all_offers)
         for raw in items:
             offer = _parse_civiweb(raw)
             if offer and offer["composite_id"] not in seen:
@@ -161,6 +162,11 @@ def _fetch_civiweb() -> list[dict]:
                 all_offers.append(offer)
 
         if len(items) < CIVIWEB_PAGE_SIZE:
+            break
+        # L'API renvoie parfois la meme page quel que soit page : si un tour
+        # n'apporte aucune offre inedite, inutile de continuer a la marteler.
+        if len(all_offers) == before:
+            logger.info("[CIVIWEB] Page %d sans nouvelle offre — arret pagination", page)
             break
         if total_count and len(all_offers) >= total_count:
             break
