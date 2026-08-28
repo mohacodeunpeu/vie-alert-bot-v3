@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 CIVIWEB_API = "https://civiweb-api-prd.azurewebsites.net/api/Offers/Search"
 FALLBACK_API = "https://mon-vie-via.businessfrance.fr/api/offres/recherche"
 
+# L'API civiweb refuse limit > 200 (HTTP 400).
+CIVIWEB_PAGE_SIZE  = 200
+MAX_CIVIWEB_PAGES  = 15
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -115,42 +119,55 @@ def _parse_civiweb(raw: dict) -> Optional[dict]:
 # ── Stratégie 1 : API civiweb (POST) ────────────────────────────────────────────
 
 def _fetch_civiweb() -> list[dict]:
-    """Recupere TOUTES les offres en une seule requete (limit eleve)."""
+    """Recupere toutes les offres en paginant.
+
+    L'API plafonne le champ limit a 200 : au-dela elle repond HTTP 400
+    "The field Limit must be between 0 and 200".
+    """
     all_offers: list[dict] = []
-    seen: set[str]          = set()
+    seen: set[str] = set()
+    total_count = 0
 
-    body = {"page": 0, "limit": 1000}
-    try:
-        resp = requests.post(CIVIWEB_API, json=body, headers=_headers(with_json=True), timeout=15)
-    except requests.RequestException as e:
-        logger.warning("[CIVIWEB] Erreur requete: %s", e)
-        return []
+    for page in range(MAX_CIVIWEB_PAGES):
+        body = {"page": page, "limit": CIVIWEB_PAGE_SIZE}
+        try:
+            resp = requests.post(CIVIWEB_API, json=body,
+                                 headers=_headers(with_json=True), timeout=15)
+        except requests.RequestException as e:
+            logger.warning("[CIVIWEB] Erreur requete page %d: %s", page, e)
+            break
 
-    logger.info("[CIVIWEB] HTTP %d", resp.status_code)
+        if resp.status_code == 401:
+            logger.error("[CIVIWEB] Token invalide ou expire")
+            return []
+        if resp.status_code != 200:
+            logger.warning("[CIVIWEB] HTTP %d page %d: %s",
+                           resp.status_code, page, resp.text[:200])
+            break
 
-    if resp.status_code == 401:
-        logger.error("[CIVIWEB] Token invalide ou expire")
-        return []
-    if resp.status_code != 200:
-        logger.warning("[CIVIWEB] HTTP %d inattendu: %s", resp.status_code, resp.text[:200])
-        return []
+        try:
+            data = resp.json()
+        except ValueError:
+            logger.error("[CIVIWEB] Reponse non-JSON page %d", page)
+            break
 
-    try:
-        data = resp.json()
-    except ValueError:
-        logger.error("[CIVIWEB] Reponse non-JSON")
-        return []
+        items = data.get("result") or data.get("results") or []
+        total_count = int(data.get("count") or total_count)
 
-    items       = data.get("result") or data.get("results") or []
-    total_count = int(data.get("count") or 0)
+        for raw in items:
+            offer = _parse_civiweb(raw)
+            if offer and offer["composite_id"] not in seen:
+                seen.add(offer["composite_id"])
+                all_offers.append(offer)
 
-    for raw in items:
-        offer = _parse_civiweb(raw)
-        if offer and offer["composite_id"] not in seen:
-            seen.add(offer["composite_id"])
-            all_offers.append(offer)
+        if len(items) < CIVIWEB_PAGE_SIZE:
+            break
+        if total_count and len(all_offers) >= total_count:
+            break
+        time.sleep(0.3)
 
-    logger.info("[CIVIWEB] %d offres parsees (total annonce: %d)", len(all_offers), total_count)
+    logger.info("[CIVIWEB] %d offres parsees (total annonce: %d)",
+                len(all_offers), total_count)
     return all_offers
 
 
