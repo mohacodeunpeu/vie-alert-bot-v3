@@ -84,13 +84,18 @@ def _load_cache() -> dict:
         return gh
 
     # Priorite 2 : variables d'environnement (Railway / local)
-    env_token   = os.environ.get("ACCESS_TOKEN", "")
-    env_refresh = os.environ.get("REFRESH_TOKEN", "")
+    env_token   = os.environ.get("ACCESS_TOKEN", "").strip()
+    env_refresh = os.environ.get("REFRESH_TOKEN", "").strip()
     if env_token:
+        try:
+            expires_at = float(os.environ.get("TOKEN_EXPIRES_AT", "") or 0) or (time.time() + 3600)
+        except ValueError:
+            logger.warning("[AUTH] TOKEN_EXPIRES_AT illisible — expiration supposee dans 1h")
+            expires_at = time.time() + 3600
         return {
             "access_token":  env_token,
             "refresh_token": env_refresh,
-            "expires_at":    float(os.environ.get("TOKEN_EXPIRES_AT", time.time() + 3600)),
+            "expires_at":    expires_at,
         }
 
     # Priorite 3 : fichier local
