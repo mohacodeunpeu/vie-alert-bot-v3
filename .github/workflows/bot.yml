@@ -1,0 +1,77 @@
+name: Bot VIE
+
+# Le bot ne tourne plus sur Railway : il est execute par ce cron.
+# Chaque run boucle pendant MAX_RUNTIME_SEC puis s'arrete proprement.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: bot-vie
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Etat persistant entre les runs (sinon : quota journalier remis a zero,
+      # offres deja vues oubliees, risque de double candidature).
+      - name: Restaurer l'etat
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            seen_offers.json
+            applied_offers.json
+            applied_log.json
+            pending_review.json
+          key: vie-state-${{ github.run_id }}
+          restore-keys: |
+            vie-state-
+
+      - name: Lancer le bot
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ACCESS_TOKEN:        ${{ vars.VIE_ACCESS_TOKEN }}
+          REFRESH_TOKEN:       ${{ vars.VIE_REFRESH_TOKEN }}
+          TOKEN_EXPIRES_AT:    ${{ vars.VIE_TOKEN_EXPIRES_AT }}
+          AUTO_APPLY:          'true'
+          MAX_DAILY_APPLIES:   '15'
+          MAX_RUNTIME_SEC:     '240'
+          MIN_INTERVAL:        '30'
+          MAX_INTERVAL:        '60'
+        run: python main.py
+
+      - name: Sauvegarder l'etat
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            seen_offers.json
+            applied_offers.json
+            applied_log.json
+            pending_review.json
+          key: vie-state-${{ github.run_id }}
+
+      - name: Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-log-${{ github.run_id }}
+          path: bot.log
+          if-no-files-found: ignore
+          retention-days: 3
