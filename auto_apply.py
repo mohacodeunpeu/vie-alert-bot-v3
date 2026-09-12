@@ -56,8 +56,17 @@ def _save_applied(applied: set) -> None:
 # ── Generation PDF lettre ───────────────────────────────────────────────────────
 
 def _safe_text(text: str) -> str:
-    """Remplace les caracteres unicode problematiques pour FPDF latin-1."""
+    """Remplace les caracteres unicode problematiques pour FPDF latin-1.
+
+    Les accents passent sans souci : la police de base couvre le latin-1, donc
+    « Negociation » n'avait aucune raison de s'ecrire sans accent. Le symbole EUR
+    est le seul vrai refus de la police, d'ou la premiere ligne ci-dessous —
+    sans elle, ecrire « 360 k€/mois » dans la lettre leve
+    FPDFUnicodeEncodingException a la generation, donc une candidature perdue
+    en silence.
+    """
     repl = {
+        "k€": "k EUR", "€": " EUR",
         "—": "-", "–": "-",
         "’": "'", "‘": "'",
         "“": '"', "”": '"',

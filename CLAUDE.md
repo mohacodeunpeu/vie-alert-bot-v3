@@ -3,12 +3,13 @@
 ## REGLES CRITIQUES
 1. NE JAMAIS envoyer d'images. L'API crash avec "image exceeds 2000px". Utilise pdftotext pour inspecter les PDFs, jamais d'image.
 2. Mode autonome. Pas de confirmation entre etapes. Resume court a la fin.
-3. Push = redeploiement Railway auto (~60s).
+3. Push = rien a redeployer. Tout tourne sur GitHub Actions (bot.yml, cron */5,
+   qui rafraichit le token puis lance le bot). Le Procfile est un reste de Railway.
 4. Conventional commits (feat/fix/refactor/chore).
 
 ## PROJET
 Bot de candidatures auto V.I.E. via Business France.
-Stack: Python, Railway, GitHub, Discord notifs.
+Stack: Python, GitHub Actions (bot + refresh token), Discord notifs.
 Owner: Amine (mohamedbenpro47@gmail.com), Bac+5 commerce/finance/marketing.
 
 ## FONCTIONS
@@ -35,15 +36,22 @@ git log -10 --oneline
 ls samples/
 
 ## DERNIER ETAT CONNU
-Commits: ae8ae40 (refonte single page), 61724e4 (hooks varies)
-Samples a 1 page chacun.
+Samples a 1 page chacun, CV et lettres.
+Accents : le texte etait ecrit SANS accent dans cv_generator.py et cover_letter.py.
+Ce n'etait pas une contrainte de fpdf — la police de base couvre le latin-1, donc
+« Negociation » passe tres bien. Seul le symbole EUR est refuse, d'ou « k EUR »
+via _safe(). Ne jamais reecrire ces textes sans accents.
 
 ## AMELIORATIONS A FAIRE
 
-### 1. Bug layout langues (HAUTE)
-Section langues coupee entre 2 pages. Tout sur 1 page propre. Reduire font/marges AVANT de couper du contenu.
+### 1. Bug layout langues — FAIT
+Regle par un calage automatique : cv_generator.SCALES essaie de la typographie
+confortable vers la serree et garde la premiere echelle qui tient sur une page
+(MAX_CONTENT_Y = 278). Avant, les polices etaient figees a 8,3 pt « pour tenir »
+et le contenu s'arretait a 195 mm sur 285 : serre ET un tiers de page blanc.
+Les samples tiennent maintenant a 266-277 mm, en polices 12 a 24 % plus grandes.
 
-### 2. CV personnalise profond
+### 2. CV personnalise profond — FAIT
 Avant chaque generation:
 - ANALYSER offre (titre, missions, profil ideal, mots-cles ATS)
 - REORDONNER experiences pour matcher
@@ -59,10 +67,11 @@ Qualite > vitesse. 30-60s de plus OK.
 - Ton pro mais humain
 - 1 page
 
-### 4. QR Code CV
-- Position: haut/bas droite (discret)
-- URL: PROFILE['qr_url']
-- Fallback: si video_cv_url rempli, prioriser
+### 4. QR Code CV — FAIT
+Le code etait deja ecrit et ne s'executait jamais : `qrcode` manquait de
+requirements.txt et l'ImportError etait avalee dans _make_qr_png. Aucun CV parti
+en production n'a donc jamais porte de QR. Paquet declare (+ pillow).
+Verifier apres toute modif de requirements : un CV genere doit contenir /Image.
 
 ### 5. Filtre geographique
 Verifier code, etendre si besoin (voir section FILTRE).
