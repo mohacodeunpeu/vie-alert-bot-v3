@@ -624,14 +624,14 @@ def generate(offer: dict) -> str:
 # ─── Message court (candidature email) ───────────────────────────────────────
 
 _SHORT_PITCH = {
-    "product_marketing":  "structurer votre demarche produit et coordonner marketing/ventes/R&D",
+    "product_marketing":  "structurer votre démarche produit et coordonner marketing/ventes/R&D",
     "digital_marketing":  "piloter des campagnes digitales multicanales avec lecture ROI rigoureuse",
-    "financial_analyst":  "construire des reportings actionnables et partnaire finance/operationnels",
-    "data_analyst":       "industrialiser des reportings et traduire les donnees en insights decideurs",
+    "financial_analyst":  "construire des reportings actionnables et partenaire finance/opérationnels",
+    "data_analyst":       "industrialiser des reportings et traduire les données en décisions pour les décideurs",
     "purchasing":         "analyser les categories, négocier en plusieurs langues, suivre fournisseurs",
     "key_account":        "prendre en main des comptes stratégiques et structurer le plan de compte",
     "business_dev":       "ouvrir un marché ou développer un portefeuille (360 k€/mois actuel)",
-    "sales":              "transformer des opportunités froides en deals signes (360 k€/mois actuel)",
+    "sales":              "transformer des opportunités froides en deals signés (360 k€/mois actuel)",
     "hr":                 "piloter des process recrutement de A à Z et faire le lien RH/business",
     "generic":            "livrer des résultats concrets en autonomie à l'international",
 }
@@ -647,11 +647,11 @@ def generate_short_message(offer: dict) -> str:
     return (
         f"Bonjour,\n"
         f"Je vous adresse ma candidature pour le poste de {titre} chez {entreprise}.\n"
-        f"Diplôme en cours de MBA Manager de Business Unit (PSB Paris) avec expérience "
+        f"En cours de MBA Manager de Business Unit (PSB Paris, soutenance juin 2026), avec une expérience "
         f"internationale (Lisbonne), je viens du pilotage opérationnel et souhaite "
         f"mettre cette énergie au service de votre équipe.\n"
         f"Concrètement, je peux {pitch}.\n"
-        f"Vous trouverez en piece jointe mon CV et ma lettre de motivation.\n"
+        f"Vous trouverez ci-joint mon CV et ma lettre de motivation.\n"
         f"Disponible pour un échange à votre convenance.\n"
         f"Cordialement, {PROFILE['name']} ({PROFILE['phone']})"
     )
