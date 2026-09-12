@@ -2,3 +2,8 @@ requests
 beautifulsoup4
 lxml
 fpdf2
+# QR code du CV. Absent de ce fichier jusqu'ici : l'ImportError etait avalee
+# dans cv_generator._make_qr_png, donc aucun CV parti en production n'a jamais
+# porte de QR code. pillow est le backend image de qrcode.
+qrcode
+pillow
