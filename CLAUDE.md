@@ -10,7 +10,18 @@
 ## PROJET
 Bot de candidatures auto V.I.E. via Business France.
 Stack: Python, GitHub Actions (bot + refresh token), Discord notifs.
-Owner: Amine (mohamedbenpro47@gmail.com), Bac+5 commerce/finance/marketing.
+Owner: Amine (mohamedbenpro47@gmail.com), Bachelor REM (Bac+3), commerce / recrutement.
+
+## FAITS — REGLE ABSOLUE (06/10/2026)
+Son plus haut diplome est le Bachelor REM (Bac+3, Paris Nord Business School,
+2026). Il n'a NI master NI MBA, et n'a jamais ete a PSB. Il n'est ni en poste ni
+en formation : disponible immediatement. DEFI GROUPE est termine (juil. 2026),
+PROMAN Group (charge d'affaires, 2026) est son poste le plus recent.
+Source de verite : profil.json de hellowork-automation-pro, statut « verifie ».
+Aucun chiffre (CA, nb de candidats, % d'engagement), outil (HubSpot, Sales
+Navigator) ou langue (chinois) n'entre dans un CV ou une lettre s'il n'y est pas.
+Jusqu'au 06/10/2026 ce bot envoyait « MBA en cours (PSB Paris) » et « 360 k€/mois » :
+les recruteurs l'ont rappele dessus (Bessand, VIE246499).
 
 ## FONCTIONS
 - Surveille nouvelles offres V.I.E.
@@ -27,7 +38,7 @@ Secteurs: commerce, finance, marketing.
 ## PROFILE
 - LinkedIn: PROFILE['qr_url']
 - CV video futur: PROFILE['video_cv_url'] (vide pour l'instant)
-- CV doit refleter Bac+5 PRO, jamais robot/template
+- CV doit refleter son vrai niveau (Bac+3) de facon pro, jamais robot/template
 
 ## DEMARRAGE SESSION
 Toujours commencer par:

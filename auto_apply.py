@@ -60,10 +60,14 @@ def _safe_text(text: str) -> str:
 
     Les accents passent sans souci : la police de base couvre le latin-1, donc
     « Negociation » n'avait aucune raison de s'ecrire sans accent. Le symbole EUR
-    est le seul vrai refus de la police, d'ou la premiere ligne ci-dessous —
-    sans elle, ecrire « 360 k€/mois » dans la lettre leve
-    FPDFUnicodeEncodingException a la generation, donc une candidature perdue
-    en silence.
+    est un vrai refus de la police, d'ou la premiere ligne ci-dessous — sans
+    elle, un « k€ » dans la lettre leve FPDFUnicodeEncodingException a la
+    generation, donc une candidature perdue en silence.
+
+    « œ » (cœur, œuvre) est hors latin-1 lui aussi : le 06/10/2026 il a fait
+    tomber la lettre « Financial Analyst ». Derniere ligne de defense : tout
+    caractere restant hors latin-1 est remplace plutot que de faire echouer
+    la candidature.
     """
     repl = {
         "k€": "k EUR", "€": " EUR",
@@ -72,10 +76,11 @@ def _safe_text(text: str) -> str:
         "“": '"', "”": '"',
         "…": "...", " ": " ",
         " ": " ",
+        "œ": "oe", "Œ": "OE",
     }
     for k, v in repl.items():
         text = text.replace(k, v)
-    return text
+    return text.encode("latin-1", "replace").decode("latin-1")
 
 
 def _generate_cover_pdf(text: str, offer: dict | None = None) -> bytes:

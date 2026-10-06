@@ -46,9 +46,17 @@ SUB_ROLES = [
 ]
 
 
+# « Talent Acquisition » contient « acquisition », mot-clé du marketing digital :
+# sans cette garde, une offre de recrutement — son métier le plus solide — partait
+# avec un CV et une lettre de community manager.
+_HR_TITLE = ("talent acquisition", "recrut", "recruit")
+
+
 def detect_sub_role(titre: str, description: str = "") -> str:
     titre_l = (titre or "").lower()
     full_l  = (titre_l + " " + (description or "")).lower()
+    if any(kw in titre_l for kw in _HR_TITLE):
+        return "hr"
     for role, keywords in SUB_ROLES:
         if any(kw in titre_l for kw in keywords):
             return role
@@ -67,7 +75,20 @@ def _hook_index(offer: dict, n_variants: int) -> int:
     return h % n_variants
 
 
-# ─── Pool de hooks par role (2 variants chacun) ───────────────────────────────
+# ─── Pool de hooks par role ───────────────────────────────────────────────────
+#
+# Faits autorisés (profil.json, statut « verifie ») : Bachelor REM (Bac+3, Paris
+# Nord Business School, 2026), BTS NTC, chargé d'affaires chez PROMAN Group
+# (2026), chargé de recrutement & commercial chez DEFI GROUPE (2025 - juil.
+# 2026), Website Builder chez Wix à Lisbonne (2025), conseiller premium
+# horlogerie au Printemps Haussmann (2023-2024), Grow 360 (2022-2024), TOEIC
+# 915/990, arabe natif, espagnol notions, disponible immédiatement.
+#
+# Retirés le 06/10/2026 : « MBA Manager de Business Unit (PSB Paris) », « 360
+# k€/mois », « 30 deals », « 300+ candidats », « deux ans de B2B », HubSpot,
+# Sales Navigator, « Negotiation Business School », « actuellement » — aucun
+# n'est dans son profil vérifié, et ils sont partis chez des recruteurs qui
+# l'ont rappelé dessus.
 
 def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
     poste = (titre or "ce poste").strip()
@@ -77,33 +98,24 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
         variants = [
             (
                 f"C'est avec un fort intérêt que je postule au poste de {poste} "
-                f"chez {entreprise}. Diplôme en cours de MBA Manager de Business "
-                f"Unit à PSB Paris (soutenance juin 2026), avec une expérience "
-                f"concrete de gestion de projets digitaux à l'international "
-                f"(Lisbonne) et de community management (GROW 360, Paris), je "
-                f"souhaite apporter cette double culture au service de votre équipe."
+                f"chez {entreprise}. Titulaire d'un Bachelor REM (Bac+3), j'ai "
+                f"travaillé comme Website Builder chez Wix à Lisbonne, en "
+                f"environnement anglophone, et comme community manager & "
+                f"événementiel chez Grow 360 à Paris. Je souhaite mettre cette "
+                f"double culture digitale et terrain au service de votre équipe."
             ),
             (
-                f"Mon double profil - gestion de projets digitaux à l'international "
-                f"(Wix, Lisbonne) et community management (GROW 360, Paris) - "
-                f"correspond directement aux besoins du poste de {poste} chez "
-                f"{entreprise}. En MBA Manager de Business Unit à PSB Paris "
-                f"(soutenance juin 2026), je cherche a mettre ces compétences "
-                f"au service d'une équipe internationale ambitieuse."
+                f"Mon parcours croise le digital et le terrain : projets web "
+                f"clients chez Wix à Lisbonne, réseaux sociaux et événements chez "
+                f"Grow 360 à Paris, vente premium au Printemps Haussmann. Le poste "
+                f"de {poste} chez {entreprise} réunit ces trois dimensions, et "
+                f"je suis disponible immédiatement."
             ),
             (
-                f"Chaque projet digital que j'ai mene - de Lisbonne à Paris - a "
-                f"confirme une chose : je m'epanouis dans les environnements ou "
-                f"marketing, produit et donnees se croisent. Le poste de {poste} "
-                f"chez {entreprise} est exactement cet environnement. MBA Manager "
-                f"de Business Unit (PSB Paris, juin 2026), disponible des juin 2026."
-            ),
-            (
-                f"Le marketing qui laisse des traces, c'est celui qui se mesure. "
-                f"C'est la culture que j'ai construite chez GROW 360 (Paris) et "
-                f"en projets clients à Lisbonne : briefer, produire, mesurer, "
-                f"ajuster. Le poste de {poste} chez {entreprise} est le terrain "
-                f"ideal pour passer a l'echelle internationale."
+                f"Ce que j'ai appris à Lisbonne comme à Paris, c'est qu'un projet "
+                f"digital commence par l'écoute du besoin client. C'est l'approche "
+                f"que je veux apporter au poste de {poste} chez {entreprise}, "
+                f"avec un Bachelor REM (Bac+3) et un anglais courant (TOEIC 915/990)."
             ),
         ]
         return variants[idx % len(variants)]
@@ -112,33 +124,25 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
         variants = [
             (
                 f"Je me permets de vous adresser ma candidature au poste de "
-                f"{poste} chez {entreprise}. En MBA Manager de Business Unit "
-                f"a PSB Paris (soutenance juin 2026) et actuellement en charge "
-                f"du pilotage opérationnel d'une activité à 360 k€/mois, je "
-                f"souhaite valoriser cette double culture analyse/business au "
-                f"service de vos enjeux financiers."
+                f"{poste} chez {entreprise}. Titulaire d'un Bachelor REM (Bac+3), "
+                f"je viens du terrain commercial — chargé d'affaires chez PROMAN "
+                f"Group, chargé de recrutement & commercial chez DEFI GROUPE — et "
+                f"je souhaite mettre cette lecture business au service de vos "
+                f"analyses."
             ),
             (
-                f"La finance n'est utile que si elle eclaire les decisions "
-                f"business. C'est cette conviction qui guide ma candidature au "
-                f"poste de {poste} chez {entreprise}. MBA Manager de Business "
-                f"Unit (PSB Paris, juin 2026), je pilote au quotidien des "
-                f"indicateurs à forts enjeux et cherche a transposer cette "
-                f"rigueur dans un contexte international."
+                f"Les chiffres sont plus utiles quand on connaît le terrain qu'ils "
+                f"décrivent. C'est ce que m'ont appris la prospection et le suivi "
+                f"de portefeuille clients chez PROMAN Group et DEFI GROUPE, et "
+                f"c'est l'angle que je veux apporter au poste de {poste} chez "
+                f"{entreprise}."
             ),
             (
-                f"Deux ans a piloter une activité à forts enjeux chiffres m'ont "
-                f"appris a lire un business dans ses donnees, pas seulement dans "
-                f"ses résultats. C'est cette lecture que je veux développer en "
-                f"rejoignant {entreprise} sur le poste de {poste}. MBA Manager "
-                f"de Business Unit (PSB Paris, juin 2026), module controle de gestion."
-            ),
-            (
-                f"Les meilleures decisions financières viennent de gens qui ont "
-                f"vecu le business opérationnellement. En pilotant 360 k€/mois "
-                f"au quotidien, j'ai développé cette double lecture qui fait la "
-                f"difference. C'est ce que je veux apporter a {entreprise} sur "
-                f"le poste de {poste}."
+                f"Le poste de {poste} chez {entreprise} est l'occasion de joindre "
+                f"une expérience commerciale réelle (PROMAN Group, DEFI GROUPE, "
+                f"Printemps Haussmann) à la rigueur du suivi et du reporting. "
+                f"Bachelor REM (Bac+3), anglais courant (TOEIC 915/990), "
+                f"disponible immédiatement."
             ),
         ]
         return variants[idx % len(variants)]
@@ -147,23 +151,23 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
         variants = [
             (
                 f"Je vous adresse ma candidature au poste de {poste} chez "
-                f"{entreprise}. Formé a la négociation en pratique (Business "
-                f"Developer B2B, 360 k€/mois) et en formation (Negotiation "
-                f"Business School certifié 2025, MBA Business Unit en cours), "
-                f"je souhaite transposer cette compétence sur les enjeux achats."
+                f"{entreprise}. Côté vente, chez PROMAN Group et DEFI GROUPE, "
+                f"j'ai appris à identifier le besoin réel d'une entreprise avant "
+                f"de proposer une solution ; je souhaite transposer cette écoute "
+                f"de l'autre côté de la table."
             ),
             (
-                f"Négocier, c'est comprendre ce que l'autre partie veut vraiment "
-                f"- pas juste son prix. C'est l'approche que j'applique depuis "
-                f"deux ans en Business Development B2B chez Agence 113 / DEFI "
-                f"GROUPE, et que je souhaite mettre au service du poste de "
-                f"{poste} chez {entreprise}."
+                f"Négocier, c'est d'abord comprendre ce que l'autre partie veut "
+                f"vraiment, pas seulement son prix. C'est l'approche que j'ai "
+                f"pratiquée en prospection B2B chez PROMAN Group et DEFI GROUPE, "
+                f"et que je souhaite mettre au service du poste de {poste} chez "
+                f"{entreprise}."
             ),
             (
-                f"Maîtriser une négociation, c'est comprendre les contraintes de "
-                f"l'autre partie avant de defendre les siennes. C'est l'approche "
-                f"que j'ai construite en B2B et que je veux transposer aux achats "
-                f"en rejoignant {entreprise} sur le poste de {poste}."
+                f"Après une expérience commerciale B2B (PROMAN Group, DEFI GROUPE) "
+                f"et un Bachelor REM (Bac+3), je souhaite rejoindre {entreprise} "
+                f"sur le poste de {poste} pour travailler la relation "
+                f"fournisseurs avec la même exigence d'écoute et de suivi."
             ),
         ]
         return variants[idx % len(variants)]
@@ -171,24 +175,24 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
     if role == "hr":
         variants = [
             (
-                f"Je suis particulièrement motive par le poste de {poste} chez "
-                f"{entreprise}. Recruitment Officer chez Agence 113 / DEFI GROUPE "
-                f"où je gère des sessions réunissant plus de 300 candidats, et "
-                f"en MBA Manager de Business Unit (PSB Paris, juin 2026), je "
-                f"combine expérience opérationnelle RH et hauteur stratégique."
+                f"Je suis particulièrement motivé par le poste de {poste} chez "
+                f"{entreprise}. Pendant un an chez DEFI GROUPE, j'ai été chargé de "
+                f"recrutement et commercial : sourcing, présélection et entretiens "
+                f"candidats d'un côté, analyse du besoin des entreprises de l'autre. "
+                f"Titulaire d'un Bachelor REM (Bac+3), je suis disponible immédiatement."
             ),
             (
-                f"Avoir gère en 3 heures un événement de recrutement reunissant "
-                f"plus de 300 candidats m'a appris une chose : la RH qui marché, "
-                f"c'est celle qui comprend le business. C'est pourquoi le poste "
-                f"de {poste} chez {entreprise} me correspond directement."
+                f"Un recrutement réussi tient à une chose : comprendre l'entreprise "
+                f"autant que le candidat. C'est ce que j'ai pratiqué chez DEFI "
+                f"GROUPE, seul interlocuteur des deux côtés jusqu'à l'aboutissement "
+                f"du dossier, et c'est pourquoi le poste de {poste} chez "
+                f"{entreprise} me correspond."
             ),
             (
-                f"La RH qui délivré, c'est celle qui parle le langage du business. "
-                f"Mon double profil - Business Developer B2B en autonomie et "
-                f"Recruitment Officer chez Agence 113 - me donne exactement cette "
-                f"double lecture. C'est pourquoi le poste de {poste} chez "
-                f"{entreprise} m'intéressé directement."
+                f"Chargé de recrutement & commercial chez DEFI GROUPE, puis chargé "
+                f"d'affaires chez PROMAN Group : j'ai travaillé le recrutement avec "
+                f"un regard business. C'est cette double lecture que je souhaite "
+                f"apporter au poste de {poste} chez {entreprise}."
             ),
         ]
         return variants[idx % len(variants)]
@@ -196,41 +200,31 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
     # Commerce / Sales / Key Account / Business Dev / generic
     variants = [
         (
-            f"Actuellement Business Developer B2B chez Agence 113 / DEFI GROUPE, "
-            f"où je pilote un portefeuille générant 360 k€/mois, et diplômé en "
-            f"cours de MBA Manager de Business Unit à PSB Paris (soutenance juin "
-            f"2026), je souhaite mettre mon expérience commerciale au service de "
-            f"votre équipe sur le poste de {poste} chez {entreprise}."
+            f"Chargé d'affaires chez PROMAN Group en 2026, après un an comme chargé "
+            f"de recrutement et commercial chez DEFI GROUPE, je souhaite mettre "
+            f"mon expérience de la prospection et du développement de portefeuille "
+            f"au service du poste de {poste} chez {entreprise}. Titulaire d'un "
+            f"Bachelor REM (Bac+3), je suis disponible immédiatement."
         ),
         (
-            f"Partir en VIE, c'est une decision stratégique - pas un simple stage. "
-            f"C'est avec cet etat d'esprit que je postule au poste de {poste} chez "
-            f"{entreprise}. Business Developer B2B en autonomie sur 360 k€/mois "
-            f"et MBA Manager de Business Unit en cours (PSB Paris, juin 2026), "
-            f"je suis pret a délivrer des résultats concrets depuis le premier mois."
+            f"Partir en V.I.E., c'est une décision réfléchie. C'est avec cet état "
+            f"d'esprit que je postule au poste de {poste} chez {entreprise} : "
+            f"prospection B2B chez PROMAN Group et DEFI GROUPE, vente premium au "
+            f"Printemps Haussmann auprès d'une clientèle internationale, et un "
+            f"anglais courant (TOEIC 915/990)."
         ),
         (
-            f"J'ai pris deux ans pour construire une expérience B2B solide avant "
-            f"de viser l'international. Aujourd'hui, le poste de {poste} chez "
-            f"{entreprise} est la prochaine etape logique. Business Developer a "
-            f"360 k€/mois, MBA Manager de Business Unit en cours (PSB Paris, "
-            f"juin 2026) : je suis pret a délivrer depuis le premier mois."
+            f"J'ai construit mon expérience commerciale sur le terrain : "
+            f"prospection et fidélisation de clients chez PROMAN Group, besoins "
+            f"des entreprises et suivi des dossiers chez DEFI GROUPE, conseil à une "
+            f"clientèle internationale au Printemps Haussmann. Le poste de {poste} "
+            f"chez {entreprise} est la prochaine étape logique."
         ),
-        # Hook oriente résultat
-        (
-            f"360 k€/mois, ce n'est pas un chiffre sur un CV - c'est 30 deals "
-            f"en cours, des relances quotidiennes, des négociations qui vont "
-            f"jusqu'au bout. C'est cette discipline que je veux mettre au service "
-            f"du poste de {poste} chez {entreprise}, avec le recul qu'apporte "
-            f"mon MBA Manager de Business Unit (PSB Paris, juin 2026)."
-        ),
-        # Hook oriente projection entreprise
         (
             f"Sur le poste de {poste} chez {entreprise}, mon objectif est clair : "
-            f"être opérationnel depuis la première semaine et délivrer des "
-            f"résultats mesurables sur la duree de la mission. Business Developer "
-            f"B2B (360 k€/mois) et MBA Manager de Business Unit en cours "
-            f"(PSB Paris, juin 2026), je suis pret a prendre cet engagement."
+            f"être opérationnel dès les premières semaines. J'arrive avec une "
+            f"pratique réelle de la prospection B2B (PROMAN Group, DEFI GROUPE), "
+            f"un Bachelor REM (Bac+3) et une disponibilité immédiate."
         ),
     ]
     return variants[idx % len(variants)]
@@ -241,91 +235,84 @@ def _hook(role: str, titre: str, entreprise: str, offer: dict) -> str:
 def pitch_for(role: str, entreprise: str, description: str = "") -> str:
     if role == "product_marketing":
         return (
-            "Mon expérience en gestion de projets digitaux pour clients "
-            "internationaux depuis Lisbonne, combinee aux modules de stratégie "
-            "produit et d'analyse de marché de mon MBA, me permet de comprendre "
-            "rapidement les enjeux de positionnement, de pricing et de cycle de "
-            "vie produit. J'ai egalement coordonne des actions de notoriete et "
-            "d'engagement chez GROW 360 (Paris), ce qui m'a appris a transformer "
-            "un brief marketing en actions mesurables avec un ROI clair."
+            "Chez Wix à Lisbonne, j'ai accompagné des clients dans leurs projets "
+            "de sites web, de l'analyse du besoin au suivi du projet, en anglais "
+            "au quotidien. Chez Grow 360 à Paris, j'ai géré les réseaux sociaux "
+            "de restaurants et organisé des événements. Ces deux expériences "
+            "m'ont appris à partir du besoin réel du client pour construire une "
+            "proposition qui lui parle."
         )
     if role == "digital_marketing":
         return (
-            "Mon expérience de Community Management chez GROW 360 (Paris) et de "
-            "gestion de projets digitaux pour clients internationaux depuis "
-            "Lisbonne m'a appris a piloter des campagnes multicanales avec des "
-            "KPIs concrets : engagement, taux de conversion, ROI campagne. Je "
-            "sais structurer une stratégie de contenu adaptee aux specificites "
-            "locales et l'ajuster en continu selon les donnees."
+            "Mon expérience de community manager & événementiel chez Grow 360 "
+            "(réseaux sociaux de restaurants, événements) et de Website Builder "
+            "chez Wix à Lisbonne m'a donné une pratique concrète du contenu et du "
+            "web : HTML/CSS/JavaScript, Wix/Velo, WordPress, Webflow. J'utilise "
+            "aussi l'IA et l'automatisation pour gagner du temps sur la "
+            "production."
         )
     if role == "financial_analyst":
         return (
-            "Mon MBA Manager de Business Unit à PSB Paris inclut des modules "
-            "approfondis de controle de gestion, analyse de la performance et "
-            "lecture financière stratégique. En parallele, je pilote au quotidien "
-            "une activité à forts enjeux (360 k€/mois) : KPIs commerciaux, "
-            "reporting, lecture business des chiffres. Cette double compétence "
-            "finance/business est un atout direct pour le partenariat avec les "
-            "équipes operationnelles."
+            "Mon atout est la lecture business : chez PROMAN Group et DEFI "
+            "GROUPE, j'ai prospecté, suivi un portefeuille clients et des "
+            "dossiers jusqu'à leur aboutissement. Je sais ce que les chiffres "
+            "représentent sur le terrain, et je travaille avec rigueur sur les "
+            "outils de suivi et de reporting."
         )
     if role == "data_analyst":
         return (
-            "Formé au pilotage par la donnee dans mon MBA, je manipule au "
-            "quotidien des indicateurs commerciaux pour orienter mes decisions. "
-            "Je sais transformer un dataset brut en insight actionnable, en "
-            "commencant par poser les bonnes questions business avant de plonger "
-            "dans la technique. Mon objectif : des analyses qui servent les "
-            "decideurs, pas des reportings pour des reportings."
+            "Je travaille avec les outils de suivi et de reporting (Pack Office), "
+            "j'ai des bases web (HTML/CSS/JavaScript) et j'utilise l'IA et "
+            "l'automatisation au quotidien. Mon expérience commerciale chez "
+            "PROMAN Group et DEFI GROUPE m'aide à poser les bonnes questions "
+            "business avant de plonger dans les données."
         )
     if role == "purchasing":
         return (
-            "Habitue a négocier des partenariats stratégiques avec des enjeux "
-            "financiers concrets (portefeuille B2B à 360 k€/mois), je transpose "
-            "facilement cette approche cote achats : recherche de fournisseurs, "
-            "comparaison TCO, négociation de conditions, structuration de contrats. "
-            "Mon multilinguisme (FR/AR natifs, EN courant, ES intermediaire) "
-            "facilite directement les relations avec les fournisseurs internationaux."
+            "Chez PROMAN Group et DEFI GROUPE, j'ai identifié les besoins des "
+            "entreprises, proposé des solutions adaptées et suivi chaque dossier "
+            "jusqu'à son aboutissement. Mon arabe natif et mon anglais courant "
+            "(TOEIC 915/990) facilitent les échanges avec des partenaires "
+            "internationaux."
         )
     if role == "key_account":
         return (
-            "Business Developer B2B chez Agence 113 / DEFI GROUPE avec un "
-            "portefeuille à 360 k€/mois, je gère des comptes stratégiques en "
-            "mode hunter-farmer. Cycle de vente long, prospection au closing, "
-            "gestion de la relation post-signature : ce mode de travail se "
-            "transpose directement aux exigences d'un poste Key Account sur "
-            "des marchés internationaux exigeants."
+            "Chez PROMAN Group, j'ai développé et fidélisé un portefeuille "
+            "clients et développé des partenariats ; chez DEFI GROUPE, j'ai "
+            "identifié les besoins des entreprises et suivi leurs dossiers "
+            "jusqu'au bout. Ce suivi dans la durée est le cœur d'un poste Key "
+            "Account, et je souhaite l'exercer sur des marchés internationaux."
         )
     if role == "business_dev":
         return (
-            "Business Developer B2B chez Agence 113 / DEFI GROUPE, je pilote "
-            "une activité à 360 k€/mois en autonomie complète sur tout le "
-            "cycle commercial : prospection, qualification, négociation, closing. "
-            "Je maîtrise HubSpot CRM et LinkedIn Sales Navigator au quotidien et "
-            "sais structurer un pipeline de A à Z. Cette posture de développeur "
-            "d'activité est exactement celle attendue dans une mission VIE."
+            "Chargé d'affaires chez PROMAN Group, j'ai prospecté de nouveaux "
+            "clients, géré et fidélisé un portefeuille et développé des "
+            "partenariats. Chez DEFI GROUPE, j'ai prospecté des entreprises, "
+            "analysé leurs besoins et proposé des solutions adaptées. Je me forme "
+            "aussi à Salesforce (certificat Sales and CRM Overview, Coursera, 2026)."
         )
     if role == "sales":
         return (
-            "Business Developer B2B chez Agence 113 / DEFI GROUPE avec 360 k€ "
-            "de CA mensuel, je sais transformer une opportunité froide en client "
-            "signe. Maîtrise du cycle complet, des outils CRM (HubSpot, Sales "
-            "Navigator) et de la négociation B2B sur des cibles exigeantes. "
-            "Cette rigueur de résultats, acquise en autonomie, est directement "
-            "applicable a votre équipe commerciale."
+            "Ma pratique de la vente couvre le B2B et le B2C : prospection et "
+            "développement de portefeuille chez PROMAN Group et DEFI GROUPE, "
+            "conseil et vente en horlogerie premium au Printemps Haussmann, "
+            "auprès d'une clientèle internationale. J'y ai appris à écouter le "
+            "besoin avant d'argumenter, et à suivre le client dans la durée."
         )
     if role == "hr":
         return (
-            "J'ai dirige opérationnellement des process de recrutement a grande "
-            "echelle : organisation d'événements reunissant 300+ candidats, "
-            "sourcing actif, coordination du service POEI, entretiens, reporting. "
-            "Cette double expérience RH/business est rare et m'a appris a parler "
-            "le langage des managers comme des candidats."
+            "Chez DEFI GROUPE, j'étais l'interlocuteur des deux côtés : "
+            "prospection d'entreprises et analyse de leur besoin, sourcing, "
+            "présélection téléphonique et entretiens candidats, puis suivi des "
+            "recrutements jusqu'à leur aboutissement. Cette double expérience "
+            "RH et commerciale m'a appris à parler le langage des managers comme "
+            "celui des candidats."
         )
     return (
-        "Mon parcours combine pilotage opérationnel en France et gestion de "
-        "projets internationaux depuis Lisbonne, avec un MBA Manager de Business "
-        "Unit (PSB Paris, juin 2026) qui m'a apporte methodes et rigueur. "
-        "J'apporte autonomie, orientation résultats et adaptabilité culturelle."
+        "Mon parcours combine une expérience commerciale en France (PROMAN "
+        "Group, DEFI GROUPE, Printemps Haussmann) et une expérience "
+        "professionnelle à Lisbonne, en anglais. J'apporte autonomie, écoute du "
+        "client et adaptabilité culturelle, avec un Bachelor REM (Bac+3)."
     )
 
 
@@ -349,21 +336,21 @@ def deliverables_for(role: str) -> str:
     if role == "financial_analyst":
         return (
             "Concrètement, je peux : "
-            "1) construire des reportings clairs et actionnables pour vos decideurs, "
-            "2) participer aux exercices de budget, forecast et analyse d'ecarts, "
-            "3) faire le pont finance/operationnels grâce à mon expérience business."
+            "1) construire des reportings clairs et actionnables pour vos décideurs, "
+            "2) participer aux exercices de budget, forecast et analyse d'écarts, "
+            "3) faire le pont finance/opérationnels grâce à mon expérience business."
         )
     if role == "data_analyst":
         return (
             "Concrètement, je peux : "
-            "1) industrialiser des reportings reguliers sur Excel / Power BI, "
-            "2) identifier les insights actionnables dans vos donnees commerciales, "
-            "3) traduire les analyses en recommandations claires pour les decideurs."
+            "1) fiabiliser des reportings réguliers avec les outils de l'équipe, "
+            "2) identifier les insights actionnables dans vos données commerciales, "
+            "3) traduire les analyses en recommandations claires pour les décideurs."
         )
     if role == "purchasing":
         return (
             "Concrètement, je peux : "
-            "1) construire des analyses categorielles pour eclairer les decisions achats, "
+            "1) construire des analyses catégorielles pour éclairer les décisions achats, "
             "2) négocier directement avec des fournisseurs internationaux en plusieurs "
             "langues, "
             "3) structurer le suivi de la performance fournisseurs."
@@ -372,16 +359,16 @@ def deliverables_for(role: str) -> str:
         return (
             "Concrètement, je peux : "
             "1) prendre en main rapidement un portefeuille de comptes stratégiques, "
-            "2) deployer une approche structuree (plan de compte, business review), "
+            "2) déployer une approche structurée (plan de compte, business review), "
             "3) négocier les conditions cadres dans plusieurs langues."
         )
     if role in ("business_dev", "sales"):
         return (
             "Concrètement, je peux : "
-            "1) ouvrir un marché ou développer un portefeuille dès le premier mois, "
-            "2) structurer votre pipeline avec une rigueur d'exécution prouvée, "
-            "3) closer des deals complexes grâce à mon expérience B2B et mon "
-            "adaptabilité culturelle."
+            "1) prospecter et développer un portefeuille dès les premières semaines, "
+            "2) suivre chaque opportunité avec rigueur jusqu'à sa conclusion, "
+            "3) créer une relation de confiance avec des clients internationaux "
+            "grâce à mon anglais courant et mon adaptabilité culturelle."
         )
     if role == "hr":
         return (
@@ -390,15 +377,15 @@ def deliverables_for(role: str) -> str:
             "2) animer des événements employeur et des sessions de sourcing, "
             "3) faire le lien RH/business grâce à mon expérience opérationnelle."
         )
-    return "Concrètement, j'apporte rigueur, autonomie à l'international et résultats mesurables."
+    return "Concrètement, j'apporte rigueur, autonomie et écoute du client, en France comme à l'international."
 
 
 # ─── Contexte pays ────────────────────────────────────────────────────────────
 
 _COUNTRY_CONTEXT = {
     "chine":      ("Shanghai et la Chine sont le 1er marché e-commerce mondial",
-                   "Mes notions de chinois et ma compréhension des codes business "
-                   "asiatiques accéléreront mon intégration."),
+                   "Mon anglais courant (TOEIC 915/990) et mon adaptabilité "
+                   "accéléreront mon intégration."),
     "japon":      ("Le Japon reste la 3e economie mondiale avec une exigence "
                    "reconnue de rigueur et de long-termisme",
                    "Mon serieux et ma capacite a tisser des relations sur la duree "
@@ -411,20 +398,20 @@ _COUNTRY_CONTEXT = {
                    "a l'ecosysteme local."),
     "etats-unis": ("Le marché americain reste le 1er PIB mondial avec des exigences "
                    "elevees de performance",
-                   "Mon expérience de gestion par objectifs (360 k€/mois) me "
-                   "prepare directement a vos standards."),
+                   "Mon anglais courant (TOEIC 915/990) et mon expérience "
+                   "commerciale me préparent à ces standards."),
     "canada":     ("Le Canada offre un acces stratégique au marché nord-americain",
                    "Mon bilinguisme français/anglais est un avantage immédiat sur ce marché."),
     "mexique":    ("Le Mexique est le 1er hub manufacturier des Ameriques",
-                   "Mon espagnol intermediaire facilitera mes échanges avec les équipes locales."),
+                   "Mes notions d'espagnol et mon adaptabilité faciliteront mon intégration."),
     "bresil":     ("Le Bresil représente la 1ere economie d'Amerique latine",
                    "Mon adaptabilité culturelle et mes acquis multiculturels sont un atout direct."),
     "argentine":  ("L'Argentine reste un acteur majeur du Cono Sur",
-                   "Mon espagnol intermediaire facilitera mes échanges avec les partenaires locaux."),
+                   "Mes notions d'espagnol et mon adaptabilité faciliteront mon intégration."),
     "chili":      ("Le Chili est le marché le plus stable d'Amerique latine",
-                   "Mon espagnol intermediaire me permettra d'être opérationnel rapidement."),
+                   "Mes notions d'espagnol, que je continue de travailler, m'aideront à m'intégrer vite."),
     "colombie":   ("La Colombie est un marché en forte croissance d'Amerique latine",
-                   "Mon espagnol intermediaire sera directement utile sur ce marché."),
+                   "Mes notions d'espagnol, que je continue de travailler, seront utiles sur ce marché."),
     "emirats":    ("Dubai concentre les sieges regionaux Moyen-Orient et est un hub du "
                    "commerce global",
                    "Arabophone natif, je maîtrise les codes commerciaux du Golfe."),
@@ -482,44 +469,41 @@ def _offer_bridge(offer: dict, analysis: dict, role: str) -> str:
     if role == "financial_analyst":
         if a1 and a2:
             return (
-                f"La dimension {a1} / {a2} au coeur de cette mission correspond "
-                f"directement à ce que je pratique : suivi budgétaire d'une activité "
-                f"à 360 k€/mois, dashboards Excel avancés et reporting mensuel "
-                f"actionnable pour la direction."
+                f"La dimension {a1} / {a2} au cœur de cette mission demande de "
+                f"comprendre ce que les chiffres racontent du terrain : c'est ce "
+                f"que m'a appris le suivi de portefeuille clients chez PROMAN "
+                f"Group et DEFI GROUPE."
             )
         return (
-            "Le pilotage financier que vous portez correspond directement à ce que "
-            "je pratique au quotidien : 360 k€/mois suivis en temps reel, "
-            "reporting direction, lecture business des indicateurs."
+            "Le pilotage que vous portez demande de comprendre ce que les chiffres "
+            "racontent du terrain : c'est ce que m'a appris le suivi de "
+            "portefeuille clients chez PROMAN Group et DEFI GROUPE."
         )
 
     if role == "data_analyst":
         if a1:
             return (
-                f"L'enjeu {a1} que vous portez correspond a l'approche que j'ai "
-                f"construite : partir des donnees pour produire des insights "
-                f"actionnables pour les decideurs, pas des reportings pour des "
-                f"reportings."
+                f"L'enjeu {a1} que vous portez rejoint ma façon de travailler : "
+                f"partir de la question business avant de produire un tableau, "
+                f"pour que l'analyse serve vraiment la décision."
             )
         return (
-            "Mon approche : partir des donnees business pour produire des insights "
-            "actionnables, pas des tableaux. C'est l'orientation que j'ai donnee "
-            "a mon MBA et que je veux développer chez vous."
+            "Ma façon de travailler : partir de la question business avant de "
+            "produire un tableau, pour que l'analyse serve vraiment la décision."
         )
 
     if role in ("product_marketing", "digital_marketing"):
         if a1 and a2:
             return (
-                f"Les dimensions {a1} et {a2} que vous portez correspondent "
-                f"aux missions que j'ai menees de bout en bout : à Lisbonne (Wix, "
-                f"projets digitaux clients) et à Paris (GROW 360, engagement "
-                f"et contenu), j'ai appris a transformer un brief en résultats mesurables."
+                f"Les dimensions {a1} et {a2} que vous portez rejoignent ce que "
+                f"j'ai pratiqué : à Lisbonne, l'accompagnement de projets web "
+                f"clients chez Wix ; à Paris, les réseaux sociaux et les "
+                f"événements chez Grow 360."
             )
         return (
-            "Le pilotage marketing de bout en bout que vous decrivez correspond "
-            "exactement aux projets que j'ai menes : de Lisbonne (projets web "
-            "clients) à Paris (stratégie de contenu GROW 360), j'ai construit "
-            "une culture du résultat mesure."
+            "Le marketing que vous décrivez rejoint ce que j'ai pratiqué : à "
+            "Lisbonne, l'accompagnement de projets web clients chez Wix ; à Paris, "
+            "les réseaux sociaux et les événements chez Grow 360."
         )
 
     if role in ("business_dev", "sales", "key_account"):
@@ -528,37 +512,38 @@ def _offer_bridge(offer: dict, analysis: dict, role: str) -> str:
         commercial_kw = next((a for a in actions if a not in _GENERIC_KWS), "")
         if commercial_kw:
             return (
-                f"La dimension {commercial_kw} au coeur de ce poste correspond directement au "
-                f"travail que je mene chez Agence 113 / DEFI GROUPE : structurer "
-                f"un pipeline, qualifier et closer en autonomie sur 360 k€/mois."
+                f"La dimension {commercial_kw} au cœur de ce poste correspond au "
+                f"travail que j'ai mené chez PROMAN Group et DEFI GROUPE : "
+                f"prospecter, identifier le besoin du client et suivre chaque "
+                f"dossier jusqu'à son aboutissement."
             )
         return (
-            "Le développement commercial que vous portez correspond directement "
-            "à ce que je pratique : structurer un pipeline, négocier en autonomie "
-            "et délivrer sur un portefeuille à 360 k€/mois."
+            "Le développement commercial que vous portez correspond au travail que "
+            "j'ai mené chez PROMAN Group et DEFI GROUPE : prospecter, identifier "
+            "le besoin du client et suivre chaque dossier jusqu'à son aboutissement."
         )
 
     if role == "purchasing":
         return (
-            "La logique achats - comprendre ce que l'autre partie veut vraiment "
-            "avant de defendre ses positions - est exactement l'approche que j'ai "
-            "construite en B2B et que je veux transposer a votre categorie."
+            "La logique achats — comprendre ce que l'autre partie veut vraiment "
+            "avant de défendre ses positions — est l'approche que j'ai pratiquée "
+            "en B2B et que je veux transposer à votre catégorie."
         )
 
     if role == "hr":
         return (
-            "Le recrutement qui délivré, c'est celui qui comprend le business. "
-            "Mon double profil Business Developer / Recruitment Officer m'a donne "
-            "exactement cette double lecture que vous recherchez."
+            "Le recrutement qui fonctionne, c'est celui qui comprend le business. "
+            "Chargé de recrutement et commercial à la fois chez DEFI GROUPE, j'ai "
+            "appris à tenir les deux bouts du dossier."
         )
 
     # Fallback : secteur ou pays
     _INDUSTRY_BRIDGES = {
-        "luxe":    "La culture de l'exigence et du detail que vous incarnez correspond naturellement a l'approche que j'ai developpee sur des postes premium (Printemps Haussmann, clients Wix intl).",
-        "énergie": "Les enjeux d'envergure et la transformation que vous portez correspondent à ce que je recherche deliberement pour mon premier poste international.",
-        "conseil": "La culture du résultat et l'orientation client de votre environnement correspondent exactement à ce que j'apporte.",
-        "retail":  "La dynamique commerciale et la pression par les chiffres de votre secteur sont exactement l'environnement dans lequel je progresse le mieux.",
-        "finance": "Les enjeux analytiques et la rigueur de votre secteur correspondent au module de controle de gestion que je finalise et a ma pratique quotidienne.",
+        "luxe":    "La culture de l'exigence et du détail que vous incarnez rejoint ce que j'ai pratiqué au Printemps Haussmann, auprès d'une clientèle internationale premium.",
+        "énergie": "Les enjeux d'envergure et la transformation que vous portez correspondent à ce que je recherche délibérément pour mon premier poste international.",
+        "conseil": "La culture du résultat et l'orientation client de votre environnement correspondent à ce que j'apporte.",
+        "retail":  "La dynamique commerciale de votre secteur est l'environnement dans lequel je progresse le mieux, comme au Printemps Haussmann.",
+        "finance": "Les enjeux analytiques de votre secteur demandent rigueur et sens du suivi, deux qualités que mon expérience commerciale m'a imposées.",
     }
     if industry in _INDUSTRY_BRIDGES:
         return _INDUSTRY_BRIDGES[industry]
@@ -590,8 +575,8 @@ def generate(offer: dict) -> str:
     deliver     = deliverables_for(role)
     market, lang_line = _country_context(pays)
 
-    pays_str  = f"en {pays}" if pays and pays not in ("N/A", "") else "a l'international"
-    duree_str = f"{duree} mois" if duree else "la duree prevue"
+    pays_str  = f"en {pays.title()}" if pays and pays not in ("N/A", "") else "à l'international"
+    duree_str = f"{duree} mois" if duree else "la durée prévue"
 
     paras = ["Madame, Monsieur,", hook]
 
@@ -630,8 +615,8 @@ _SHORT_PITCH = {
     "data_analyst":       "industrialiser des reportings et traduire les données en décisions pour les décideurs",
     "purchasing":         "analyser les categories, négocier en plusieurs langues, suivre fournisseurs",
     "key_account":        "prendre en main des comptes stratégiques et structurer le plan de compte",
-    "business_dev":       "ouvrir un marché ou développer un portefeuille (360 k€/mois actuel)",
-    "sales":              "transformer des opportunités froides en deals signés (360 k€/mois actuel)",
+    "business_dev":       "prospecter, développer et fidéliser un portefeuille clients",
+    "sales":              "prospecter, conseiller et suivre vos clients jusqu'à la signature",
     "hr":                 "piloter des process recrutement de A à Z et faire le lien RH/business",
     "generic":            "livrer des résultats concrets en autonomie à l'international",
 }
@@ -647,9 +632,10 @@ def generate_short_message(offer: dict) -> str:
     return (
         f"Bonjour,\n"
         f"Je vous adresse ma candidature pour le poste de {titre} chez {entreprise}.\n"
-        f"En cours de MBA Manager de Business Unit (PSB Paris, soutenance juin 2026), avec une expérience "
-        f"internationale (Lisbonne), je viens du pilotage opérationnel et souhaite "
-        f"mettre cette énergie au service de votre équipe.\n"
+        f"Titulaire d'un Bachelor REM (Bac+3), j'ai été chargé d'affaires chez "
+        f"PROMAN Group et chargé de recrutement & commercial chez DEFI GROUPE, "
+        f"avec une expérience à Lisbonne (Wix) et un anglais courant (TOEIC "
+        f"915/990). Je suis disponible immédiatement.\n"
         f"Concrètement, je peux {pitch}.\n"
         f"Vous trouverez ci-joint mon CV et ma lettre de motivation.\n"
         f"Disponible pour un échange à votre convenance.\n"

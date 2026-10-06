@@ -1,5 +1,5 @@
 """
-CV généré dynamiquement par offre, niveau pro Bac+5.
+CV généré dynamiquement par offre, à partir de faits vérifiés (Bachelor REM, Bac+3).
 
 Ce qui pilote le rendu, dans l'ordre :
 
@@ -17,9 +17,9 @@ Trois défauts corrigés ici, tous visibles à l'œil sur les PDF précédents :
     fpdf : la police de base accepte le latin-1, donc « Négociation » passe très
     bien. Un CV français sans accents lu par un recruteur français, ça ne fait
     pas « compact », ça fait cassé.
-  * « 360 KEUR/mois » — le symbole EUR est le seul caractère que la police de
-    base refuse. On écrit donc « k€ » dans les données et _safe() le rend en
-    « k EUR », lisible. Le jour où une police Unicode est embarquée, il suffit
+  * Le symbole EUR est le seul caractère que la police de base refuse. On
+    écrit donc « k€ » dans les données et _safe() le rend en « k EUR »,
+    lisible. Le jour où une police Unicode est embarquée, il suffit
     de retirer cette ligne de _safe().
   * Le contenu s'arrêtait à 195 mm sur une page utile de 285 : un tiers de page
     blanc, alors que les polices étaient écrasées à 8,3 pt pour « tenir en une
@@ -36,6 +36,20 @@ import offer_analyzer as oa
 
 
 # ─── Données réelles d'Amine ──────────────────────────────────────────────────
+#
+# SOURCE UNIQUE : profil.json de hellowork-automation-pro (statut « verifie »),
+# relu le 06/10/2026. Jusqu'à cette date, ce fichier annonçait un « MBA Manager
+# de Business Unit en cours (PSB Paris, soutenance juin 2026) », un poste « en
+# cours » chez DEFI GROUPE, « 360 k€/mois », « 300+ candidats », « +35 %
+# d'engagement », du chinois et HubSpot. Rien de cela n'est dans son profil
+# vérifié : il a un Bachelor REM (Bac+3) de Paris Nord Business School, pas de
+# MBA, et DEFI GROUPE s'est terminé en juillet 2026. Un diplôme ou un chiffre
+# annoncé et non détenu tombe au premier appel du recruteur, et la candidature
+# tombe avec lui — c'est arrivé avec Bessand (VIE246499) le 30/09.
+#
+# Règle : aucun chiffre, outil, diplôme ou langue n'entre ici sans être dans
+# profil.json avec le statut « verifie ». Un chiffre vrai et précis se rajoute
+# le jour où il le confirme, avec ce qu'il mesure exactement.
 
 PROFILE = {
     "name":       "AMINE BEN MANSOUR",
@@ -50,20 +64,22 @@ PROFILE = {
 
 # Intitulé de repli par rôle, quand l'offre n'a pas de titre exploitable.
 TAGLINE_BY_ROLE = {
-    "product_marketing": "Brand & Product Manager",
+    "product_marketing": "Marketing & Projets digitaux",
     "digital_marketing": "Digital Marketing",
-    "financial_analyst": "Financial Analyst",
-    "data_analyst":      "Data & Business Analyst",
-    "purchasing":        "Achats & Category Management",
-    "key_account":       "Key Account Manager",
+    "financial_analyst": "Business Analyst junior",
+    "data_analyst":      "Business Analyst junior",
+    "purchasing":        "Achats & Relation fournisseurs",
+    "key_account":       "Key Account Manager junior",
     "business_dev":      "Business Developer",
-    "sales":             "Sales Manager B2B",
+    "sales":             "Sales B2B",
     "hr":                "Talent Acquisition",
     "generic":           "Business Developer",
 }
 
 # Suffixe commun : ce qui ne change jamais, quel que soit le poste visé.
-TAGLINE_SUFFIX = "MBA Manager de Business Unit | V.I.E. 2026"
+# Court exprès : avec un intitulé d'offre de 46 caractères, la ligne doit
+# encore s'arrêter avant le QR code (x = 179 mm).
+TAGLINE_SUFFIX = "Bachelor REM (Bac+3) | TOEIC 915 | Dispo. immédiate"
 
 
 # ─── Résumés par sous-rôle ────────────────────────────────────────────────────
@@ -72,58 +88,66 @@ TAGLINE_SUFFIX = "MBA Manager de Business Unit | V.I.E. 2026"
 
 SUMMARY_BASE = {
     "product_marketing": (
-        "MBA Manager de Business Unit (PSB Paris, juin 2026). Gestion de projets "
-        "digitaux internationaux (Wix, Lisbonne) et community management "
-        "(GROW 360, Paris). Capable de structurer une démarche produit et de la "
-        "décliner en actions marketing concrètes sur des marchés multiculturels."
+        "Expérience digitale et terrain : Website Builder chez Wix à Lisbonne "
+        "(analyse des besoins clients, environnement anglophone), community "
+        "manager & événementiel chez Grow 360 à Paris, vente premium au "
+        "Printemps Haussmann. Bachelor REM (Bac+3), anglais courant (TOEIC 915/990)."
     ),
     "digital_marketing": (
-        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026). Expérience "
-        "opérationnelle en community management (GROW 360) et projets digitaux à "
-        "l'international (Lisbonne). Maîtrise des leviers d'engagement et lecture "
-        "rigoureuse des KPIs."
+        "Community manager & événementiel chez Grow 360 (réseaux sociaux de "
+        "restaurants, organisation d'événements) et Website Builder chez Wix à "
+        "Lisbonne. Web : HTML/CSS/JavaScript, Wix/Velo, WordPress, Webflow. "
+        "Bachelor REM (Bac+3), anglais courant (TOEIC 915/990)."
     ),
     "financial_analyst": (
-        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026), module "
-        "contrôle de gestion. Pilote au quotidien une activité à 360 k€/mois : "
-        "indicateurs, reporting, lecture business des chiffres."
+        "Profil business : prospection et suivi d'un portefeuille clients chez "
+        "PROMAN Group et DEFI GROUPE, vente premium au Printemps Haussmann. "
+        "Bachelor REM (Bac+3). Rigueur de suivi, outils de reporting (Pack "
+        "Office), anglais courant (TOEIC 915/990)."
     ),
     "data_analyst": (
-        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026). Pilotage "
-        "quotidien de KPIs commerciaux. Formé à l'analyse et au storytelling de "
-        "données pour traduire un jeu de données en décision actionnable."
+        "Bachelor REM (Bac+3). Outils de suivi et de reporting (Pack Office), "
+        "bases web (HTML/CSS/JavaScript) et automatisation par l'IA. Expérience "
+        "business en prospection et suivi de portefeuille clients (PROMAN Group, "
+        "DEFI GROUPE). Anglais courant (TOEIC 915/990)."
     ),
     "purchasing": (
-        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026). Certifié "
-        "Negotiation Business School (2025). Expérience de négociation B2B sur un "
-        "portefeuille à 360 k€/mois, multilingue, transposable aux enjeux achats "
-        "internationaux."
+        "Expérience B2B côté vente : prospection, identification des besoins des "
+        "entreprises et proposition de solutions (PROMAN Group, DEFI GROUPE). "
+        "Bachelor REM (Bac+3). Français et arabe natifs, anglais courant "
+        "(TOEIC 915/990)."
     ),
     "key_account": (
-        "Business Developer B2B chez Agence 113 / DEFI GROUPE (360 k€/mois). "
-        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026). Profil "
-        "hunter-farmer, multilingue, orienté partenariats stratégiques long terme."
+        "Développement et fidélisation d'un portefeuille clients chez PROMAN "
+        "Group (2026) ; identification des besoins des entreprises et suivi des "
+        "dossiers chez DEFI GROUPE (2025 - juil. 2026). Bachelor REM (Bac+3), "
+        "anglais courant (TOEIC 915/990), arabe natif."
     ),
     "business_dev": (
-        "Business Developer B2B chez Agence 113 / DEFI GROUPE, 360 k€/mois. "
-        "MBA Manager de Business Unit en cours (PSB Paris, juin 2026). Cycle "
-        "commercial complet, HubSpot CRM, Sales Navigator, négociation B2B."
+        "Chargé d'affaires chez PROMAN Group (2026) et chargé de recrutement & "
+        "commercial chez DEFI GROUPE (2025 - juil. 2026) : prospection B2B, "
+        "identification des besoins des entreprises, développement et "
+        "fidélisation d'un portefeuille clients. Bachelor REM (Bac+3), anglais "
+        "courant (TOEIC 915/990), arabe natif."
     ),
     "sales": (
-        "Business Developer B2B chez Agence 113 / DEFI GROUPE (360 k€/mois) et "
-        "ex-Sales Advisor Printemps Haussmann. MBA Manager de Business Unit en "
-        "cours à PSB Paris. Profil multilingue orienté résultats."
+        "Vente B2B et B2C : chargé d'affaires chez PROMAN Group, chargé de "
+        "recrutement & commercial chez DEFI GROUPE, conseiller premium "
+        "horlogerie au Printemps Haussmann auprès d'une clientèle "
+        "internationale. Bachelor REM (Bac+3), anglais courant (TOEIC 915/990)."
     ),
     "hr": (
-        "Recruitment Officer chez Agence 113 / DEFI GROUPE : 300+ candidats gérés, "
-        "coordination POEI, sourcing actif. Double compétence RH / business, "
-        "renforcée par le MBA Manager de Business Unit en cours (PSB Paris, "
-        "juin 2026)."
+        "Un an chargé de recrutement & commercial chez DEFI GROUPE : sourcing, "
+        "présélection et entretiens candidats, analyse du besoin des "
+        "entreprises, suivi des recrutements jusqu'à leur aboutissement. Puis "
+        "chargé d'affaires chez PROMAN Group. Bachelor REM (Bac+3), anglais "
+        "courant (TOEIC 915/990)."
     ),
     "generic": (
-        "Profil junior ambitieux : MBA Manager de Business Unit en cours (PSB "
-        "Paris, juin 2026), Business Developer B2B (360 k€/mois), expérience "
-        "internationale à Lisbonne, multilingue (FR/AR natifs, EN courant)."
+        "Bachelor REM (Bac+3). Chargé d'affaires (PROMAN Group), chargé de "
+        "recrutement & commercial (DEFI GROUPE), expérience internationale à "
+        "Lisbonne (Wix), vente premium au Printemps Haussmann. Français et arabe "
+        "natifs, anglais courant (TOEIC 915/990). Disponible immédiatement."
     ),
 }
 
@@ -131,155 +155,190 @@ SUMMARY_BASE = {
 # Ce que chaque secteur détecté permet de dire honnêtement, sans rien inventer.
 # Utilisé pour la phrase d'accroche liée à l'offre.
 INDUSTRY_ANGLE = {
-    "luxe":         "clientèle internationale premium (Printemps Haussmann)",
-    "retail":       "retail premium et relation client (Printemps Haussmann)",
-    "tech":         "projets web et produits digitaux livrés en autonomie (Wix)",
-    "conseil":      "pilotage de projets clients multiples en parallèle",
-    "finance":      "suivi budgétaire et reporting d'une activité à 360 k€/mois",
-    "pharma":       "rigueur de process et reporting structuré",
-    "automotive":   "cycle de vente B2B long et négociation grands comptes",
-    "energy":       "pilotage d'indicateurs et reporting direction",
-    "agroalim":     "développement de portefeuille B2B et négociation",
-    "industrie":    "coordination d'acteurs internes multiples",
-    "construction": "coordination d'acteurs internes multiples",
-    "telecom":      "prospection B2B volumique et suivi CRM",
+    "luxe":         "une clientèle internationale premium (Printemps Haussmann)",
+    "retail":       "la vente premium et la relation client (Printemps Haussmann)",
+    "tech":         "des projets web clients menés à Lisbonne (Wix)",
+    "conseil":      "l'analyse du besoin client et le suivi de dossiers en parallèle",
+    "finance":      "le suivi rigoureux d'un portefeuille clients",
+    "pharma":       "la rigueur de suivi des dossiers",
+    "automotive":   "la prospection B2B et la relation client",
+    "energy":       "la prospection B2B et le suivi des besoins clients",
+    "agroalim":     "le développement et la fidélisation d'un portefeuille clients",
+    "industrie":    "la coordination entre plusieurs interlocuteurs",
+    "construction": "la coordination entre plusieurs interlocuteurs",
+    "telecom":      "la prospection B2B et le suivi des dossiers clients",
 }
 
 
-# ─── Expériences réelles — bullets orientés impact (action + outil + résultat) ─
+# ─── Expériences réelles ──────────────────────────────────────────────────────
+# Les bullets reprennent les missions de son CV, reformulées selon le rôle visé,
+# jamais augmentées. Mêmes formulations que cv_builder.py côté HelloWork.
 
 EXPERIENCES = [
     {
-        "id":      "defi",
-        "title":   "Business Developer & Recruitment Officer",
-        "company": "Agence 113 - DEFI GROUPE",
+        # Son poste le plus récent. Il manquait à tous les CV VIE jusqu'au
+        # 06/10/2026.
+        "id":      "proman",
+        "title":   "Chargé d'affaires",
+        "company": "PROMAN Group",
         "city":    "Paris",
-        "period":  "Sept. 2025 - aujourd'hui",
-        # Poste en cours : il ouvre le CV quel que soit le rôle visé (cf.
-        # _ordered_experiences). Un seul poste doit porter ce drapeau.
-        "current": True,
+        "period":  "2026",
+        "recent":  True,
         "bullets": {
             "default": [
-                "Pilotage d'un portefeuille B2B à 360 k€/mois : 30+ leads qualifiés par mois.",
-                "Suivi CRM HubSpot sur 120+ comptes : taux de relance maintenu à 85 %.",
-                "Événements de recrutement : 300+ candidats qualifiés par session.",
-                "Coordination production / communication / RH : livraison sans retard sur 6 mois.",
+                "Prospection commerciale et développement de nouveaux clients.",
+                "Gestion et fidélisation du portefeuille clients.",
+                "Développement de partenariats et suivi des besoins clients.",
             ],
             "commerce": [
-                "Développement d'un portefeuille B2B à 360 k€/mois : cycle complet en autonomie.",
-                "Négociation directe avec les décideurs : 3 partenariats long terme conclus par trimestre.",
-                "Pipeline structuré sous HubSpot : 30+ opportunités qualifiées suivies en temps réel.",
-                "Prospection multicanale (LinkedIn Sales Navigator, téléphone, e-mail).",
+                "Prospection commerciale et développement de nouveaux clients.",
+                "Gestion et fidélisation du portefeuille clients.",
+                "Développement de partenariats et suivi des besoins clients.",
             ],
             "marketing": [
-                "Pilotage d'une activité à 360 k€/mois : 5 KPIs suivis, reporting hebdomadaire direction.",
-                "Acquisition B2B ciblée : 30+ contacts qualifiés par mois en prospection active.",
-                "Coordination production / communication / RH : livraison sans retard sur 6 mois.",
-                "Analyse des retours terrain pour ajuster le discours commercial.",
+                "Développement de partenariats et suivi des besoins clients.",
+                "Prospection commerciale et développement de nouveaux clients.",
             ],
             "finance": [
-                "Suivi budgétaire d'une activité à 360 k€/mois : analyse des marges et des écarts, chaque semaine.",
-                "Reporting mensuel à la direction via dashboards Excel (TCD, formules avancées).",
-                "Analyse de rentabilité client : 3 leviers d'optimisation identifiés et appliqués.",
-                "Construction et tenue des indicateurs de pilotage de l'activité.",
+                "Gestion et suivi du portefeuille clients.",
+                "Suivi des besoins clients et des dossiers.",
             ],
             "hr": [
-                "Événements de recrutement : 300+ candidats qualifiés et accueillis par session.",
-                "Coordination POEI avec France Travail : 15 intégrations gérées en parallèle.",
-                "Pilotage des KPIs RH : taux de placement et reporting mensuel au management.",
-                "Sourcing actif multicanal et conduite d'entretiens de préqualification.",
+                "Chargé d'affaires dans un groupe de travail temporaire : "
+                "prospection et suivi des entreprises clientes.",
+                "Gestion et fidélisation du portefeuille clients.",
+            ],
+        },
+    },
+    {
+        # Terminé en juillet 2026 : jamais « aujourd'hui », jamais « en cours ».
+        "id":      "defi",
+        "title":   "Chargé de recrutement & commercial",
+        "company": "DEFI GROUPE (Agence 113)",
+        "city":    "Île-de-France",
+        "period":  "2025 - juil. 2026",
+        "recent":  True,
+        "bullets": {
+            "default": [
+                "Prospection et développement de nouvelles opportunités commerciales.",
+                "Identification des besoins des entreprises et proposition de solutions adaptées.",
+                "Sourcing, sélection et accompagnement des candidats.",
+                "Coordination entre entreprises et candidats, suivi des dossiers.",
+            ],
+            "commerce": [
+                "Prospection et développement de nouvelles opportunités commerciales.",
+                "Identification des besoins des entreprises et proposition de solutions adaptées.",
+                "Coordination entre entreprises et candidats, suivi des dossiers "
+                "jusqu'à leur aboutissement.",
+                "Sourcing, sélection et accompagnement des candidats.",
+            ],
+            "marketing": [
+                "Identification des besoins des entreprises et proposition de solutions adaptées.",
+                "Prospection et développement de nouvelles opportunités commerciales.",
+                "Coordination entre entreprises et candidats, suivi des dossiers.",
+            ],
+            "finance": [
+                "Suivi des dossiers entreprises et candidats jusqu'à leur aboutissement.",
+                "Identification des besoins des entreprises et proposition de solutions adaptées.",
+                "Prospection et développement de nouvelles opportunités commerciales.",
+            ],
+            "hr": [
+                "Seul interlocuteur des deux côtés : les entreprises pour leur "
+                "besoin, les candidats pour leur parcours.",
+                "Sourcing, présélection téléphonique et entretiens candidats.",
+                "Prospection d'entreprises, analyse du besoin et proposition de profils adaptés.",
+                "Suivi des recrutements jusqu'à leur aboutissement.",
             ],
         },
     },
     {
         "id":      "wix",
-        "title":   "Project Manager / Website Builder",
-        "company": "Wix - International",
+        "title":   "Website Builder",
+        "company": "Wix",
         "city":    "Lisbonne, Portugal",
-        "period":  "2025",
+        "period":  "avr. - août 2025",
         "bullets": {
             "default": [
-                "Livraison de 5+ sites clients internationaux en autonomie : brief, design, mise en ligne.",
-                "Optimisation UX et conversion : +20 % de taux de clic moyen sur les landing pages.",
-                "Échanges clients en anglais et en espagnol au quotidien.",
+                "Analyse des besoins clients et proposition de solutions adaptées.",
+                "Accompagnement des clients et suivi des projets.",
+                "Travail quotidien en environnement professionnel anglophone.",
             ],
             "commerce": [
-                "Livraison de 5+ sites clients internationaux : recueil du besoin, cadrage, mise en ligne.",
-                "Relation client directe en anglais et en espagnol, du brief à la validation finale.",
-                "Optimisation conversion : +20 % de taux de clic sur les landing pages.",
+                "Analyse des besoins clients et proposition de solutions adaptées.",
+                "Travail quotidien en environnement professionnel anglophone.",
             ],
             "marketing": [
-                "Projets digitaux clients internationaux : brief, contenu, A/B tests, livraison.",
-                "Optimisation de la conversion via analytics : +20 % de taux de clic sur les landing pages.",
-                "Adaptation des contenus à des audiences multiculturelles.",
+                "Analyse des besoins clients et accompagnement de leurs projets de sites web.",
+                "Travail quotidien en environnement professionnel anglophone.",
             ],
             "finance": [
-                "Gestion de 5+ projets clients en parallèle : périmètre, délais, livraison.",
-                "Suivi de la performance des pages via analytics : +20 % de taux de clic.",
+                "Accompagnement des clients et suivi des projets.",
+                "Travail quotidien en environnement professionnel anglophone.",
             ],
             "hr": [
-                "Gestion de 5+ projets clients internationaux en autonomie complète.",
-                "Communication quotidienne en anglais et en espagnol.",
+                "Accompagnement des clients et suivi des projets.",
+                "Travail quotidien en environnement professionnel anglophone.",
             ],
         },
     },
     {
         "id":      "printemps",
-        "title":   "Sales Advisor - Retail premium",
+        "title":   "Conseiller premium horlogerie",
         "company": "Printemps Haussmann",
         "city":    "Paris",
-        "period":  "2024",
+        "period":  "2023 - 2024",
         "bullets": {
             "default": [
-                "Dépassement des objectifs de vente (+10 % vs. cible mensuelle) sur zone premium.",
-                "Fidélisation d'une clientèle internationale : taux de retour élevé sur le portefeuille.",
-                "Vente conseil en français, anglais et espagnol.",
+                "Conseil et vente auprès d'une clientèle internationale.",
+                "Développement de la relation client et fidélisation.",
+                "Gestion des priorités dans un environnement exigeant.",
             ],
             "commerce": [
-                "Dépassement des objectifs de vente (+10 % vs. cible mensuelle) sur zone premium.",
-                "Vente conseil auprès d'une clientèle internationale, en 3 langues.",
-                "Montée en compétence sur les produits premium et le discours de marque.",
+                "Conseil et vente en horlogerie auprès d'une clientèle internationale.",
+                "Écoute du besoin et argumentation produit.",
+                "Développement de la relation client et fidélisation.",
             ],
             "marketing": [
-                "Contact direct avec une clientèle internationale premium : lecture des attentes réelles.",
-                "Dépassement des objectifs de vente (+10 % vs. cible mensuelle).",
+                "Contact direct avec une clientèle internationale premium.",
+                "Écoute du besoin et argumentation produit.",
             ],
             "finance": [
-                "Suivi quotidien des objectifs et de la performance de la zone : +10 % vs. cible.",
-                "Reporting des ventes et des retours clients au responsable de zone.",
+                "Conseil et vente en horlogerie premium.",
+                "Gestion des priorités dans un environnement exigeant.",
             ],
             "hr": [
-                "Intégration rapide en équipe multiculturelle sur un environnement à fort trafic.",
-                "Dépassement des objectifs de vente (+10 % vs. cible mensuelle).",
+                "Conseil et accompagnement d'une clientèle internationale.",
+                "Écoute du besoin avant toute proposition.",
             ],
         },
     },
     {
         "id":      "grow",
-        "title":   "Community Manager",
-        "company": "GROW 360",
+        "title":   "Community manager & événementiel",
+        "company": "Grow 360",
         "city":    "Paris",
-        "period":  "2023 - 2024",
+        "period":  "2022 - 2024",
         "bullets": {
             "default": [
-                "Stratégie éditoriale : +35 % d'engagement (Instagram, LinkedIn) en 6 mois.",
-                "Planification de 10+ publications par semaine sur 3 formats, zéro retard.",
+                "Organisation d'événements et animation sur le terrain.",
+                "Gestion des réseaux sociaux de restaurants.",
             ],
             "marketing": [
-                "Stratégie éditoriale et ligne de marque : +35 % d'engagement en 6 mois.",
-                "Planification de 10+ publications par semaine sur 3 formats, zéro retard.",
-                "Suivi des statistiques de portée et d'engagement pour arbitrer les formats.",
+                "Gestion des réseaux sociaux de restaurants.",
+                "Organisation d'événements et animation sur le terrain.",
+                "Relation client et animation de communauté.",
             ],
             "commerce": [
-                "Stratégie éditoriale : +35 % d'engagement (Instagram, LinkedIn) en 6 mois.",
-                "Génération de contacts entrants via les réseaux sociaux.",
+                "Relation client et animation.",
+                "Organisation d'événements.",
             ],
             "finance": [
-                "Suivi des statistiques d'engagement et de portée : +35 % en 6 mois.",
+                "Organisation d'événements.",
+                "Relation client.",
             ],
             "hr": [
-                "Communication employeur et animation de communauté : +35 % d'engagement.",
-                "Planification de 10+ publications par semaine, zéro retard.",
+                "Organisation d'événements et animation sur le terrain.",
+                "Relation client et animation de communauté.",
             ],
         },
     },
@@ -299,18 +358,22 @@ BULLET_VARIANT = {
     "generic":           "default",
 }
 
-# Priorité d'affichage des expériences selon le rôle.
+# Priorité d'affichage des expériences selon le rôle. Les postes marqués
+# « recent » (PROMAN, DEFI GROUPE) restent en tête quel que soit le rôle ; cet
+# ordre décide seulement de LEUR ordre entre eux, puis de celui du reste —
+# chronologique par défaut, le secteur de l'offre (INDUSTRY_BOOST) remontant
+# d'un cran l'expérience qui lui parle.
 ROLE_PRIORITY = {
-    "product_marketing": ["wix", "grow", "defi", "printemps"],
-    "digital_marketing": ["grow", "wix", "defi", "printemps"],
-    "financial_analyst": ["defi", "wix", "printemps", "grow"],
-    "data_analyst":      ["defi", "wix", "printemps", "grow"],
-    "purchasing":        ["defi", "wix", "printemps", "grow"],
-    "key_account":       ["defi", "printemps", "wix", "grow"],
-    "business_dev":      ["defi", "printemps", "wix", "grow"],
-    "sales":             ["defi", "printemps", "wix", "grow"],
-    "hr":                ["defi", "grow", "wix", "printemps"],
-    "generic":           ["defi", "wix", "printemps", "grow"],
+    "product_marketing": ["proman", "defi", "wix", "grow", "printemps"],
+    "digital_marketing": ["proman", "defi", "grow", "wix", "printemps"],
+    "financial_analyst": ["proman", "defi", "wix", "printemps", "grow"],
+    "data_analyst":      ["proman", "defi", "wix", "printemps", "grow"],
+    "purchasing":        ["proman", "defi", "wix", "printemps", "grow"],
+    "key_account":       ["proman", "defi", "wix", "printemps", "grow"],
+    "business_dev":      ["proman", "defi", "wix", "printemps", "grow"],
+    "sales":             ["proman", "defi", "wix", "printemps", "grow"],
+    "hr":                ["defi", "proman", "wix", "printemps", "grow"],
+    "generic":           ["proman", "defi", "wix", "printemps", "grow"],
 }
 
 # Le secteur de l'offre remonte une expérience d'un cran. Un poste dans le luxe
@@ -323,103 +386,111 @@ INDUSTRY_BOOST = {
 }
 
 # Nombre de bullets par position (1re expérience en premier).
-BULLETS_PER_POSITION = [4, 3, 2, 2]
+BULLETS_PER_POSITION = [4, 3, 2, 2, 2]
 
 
 # ─── Formation ────────────────────────────────────────────────────────────────
+# Le plus haut diplôme est le Bachelor REM (Bac+3). Ni master, ni MBA.
 
 EDUCATION = [
-    ("MBA - Manager de Business Unit",
-     "PSB Paris School of Business",
-     "Paris  2025-2026",
-     "soutenance juin 2026"),
-    ("Bachelor Bac+3 - Développement Commercial",
-     "PSB Paris School of Business",
-     "Paris  2022-2025",
-     "obtenu"),
-    ("Certification Négociation Commerciale",
-     "Negotiation Business School (en ligne)",
+    ("Bachelor REM (Bac+3)",
+     "Paris Nord Business School (distanciel)",
+     "2026",
+     ""),
+    ("BTS NTC (Bac+2)",
+     "Paris Nord Business School, Saint-Denis",
      "2025",
-     "certifié"),
-    ("Habilitation SST - Sauveteur Secouriste du Travail",
-     "Croix-Rouge Française",
-     "Paris  2024",
+     ""),
+    ("Formation Website Builder",
+     "Wix, Lisbonne",
+     "avr. - août 2025",
+     ""),
+    # Certificat reçu le 04/10/2026 (courriel Coursera « Votre Certificat est
+    # prêt »). Le cours seul — pas le « Professional Certificate » complet.
+    ("Certificat Sales and CRM Overview",
+     "Salesforce / Pathstream (Coursera)",
+     "2026",
+     ""),
+    ("SST - Sauveteur Secouriste du Travail",
+     "Croix-Rouge française, Paris",
+     "depuis 2022",
      ""),
 ]
 
 
 # ─── Compétences par rôle ─────────────────────────────────────────────────────
+# Uniquement ce qui est dans son CV vérifié.
 
 SKILLS_BY_ROLE = {
     "product_marketing": [
-        "Stratégie produit, positionnement, pricing (MBA)",
-        "Gestion de projets digitaux internationaux (Wix, Lisbonne)",
-        "Community management et contenu (GROW 360, Paris)",
-        "Lecture des KPIs, taux de conversion, ROI marketing",
-        "Coordination marketing / ventes / R&D",
+        "Analyse du besoin client et proposition de solutions",
+        "Création de sites web : Wix/Velo, WordPress, Webflow",
+        "Réseaux sociaux et événementiel (Grow 360)",
+        "Relation client internationale (Printemps Haussmann, Wix)",
+        "IA et automatisation",
     ],
     "digital_marketing": [
-        "Community management et réseaux sociaux (GROW 360)",
-        "Pilotage de campagnes digitales, lecture KPI / ROI",
-        "Outils : Canva, Notion, Google Suite, Wix",
-        "UX et conversion (Wix, Lisbonne)",
-        "Stratégie de contenu multiculturelle",
+        "Réseaux sociaux et animation de communauté (Grow 360)",
+        "Web : HTML/CSS/JavaScript, Wix/Velo, WordPress, Webflow",
+        "IA et automatisation",
+        "Organisation d'événements",
+        "Pack Office et outils de reporting",
     ],
     "financial_analyst": [
-        "Contrôle de gestion et lecture financière (MBA)",
-        "Pilotage de KPIs commerciaux à 360 k€/mois",
-        "Reporting, analyse d'écarts, dashboards Excel",
-        "Pack Office avancé (TCD, formules, VBA)",
-        "Rigueur analytique et orientation business",
+        "Pack Office, outils de suivi et de reporting",
+        "Suivi de portefeuille clients et de dossiers",
+        "Lecture business des besoins clients",
+        "IA et automatisation",
+        "Anglais professionnel (TOEIC 915/990)",
     ],
     "data_analyst": [
-        "Analyse de données et pilotage de KPIs (MBA)",
-        "Gestion d'indicateurs commerciaux au quotidien",
-        "Excel avancé, notions Power BI / Tableau",
-        "Storytelling de données pour les décideurs",
-        "Esprit critique et rigueur méthodologique",
+        "Pack Office, outils de suivi et de reporting",
+        "HTML/CSS/JavaScript, VS Code",
+        "IA et automatisation",
+        "Suivi de portefeuille clients et de dossiers",
+        "Anglais professionnel (TOEIC 915/990)",
     ],
     "purchasing": [
-        "Négociation B2B (Negotiation Business School, 2025)",
-        "Analyse de besoins et structuration d'offres",
-        "Multilinguisme : FR/AR natifs, EN courant, ES intermédiaire",
-        "Pack Office avancé et CRM HubSpot",
-        "Suivi de performance et reporting",
+        "Identification du besoin et proposition de solutions",
+        "Prospection et relation B2B",
+        "Suivi des dossiers jusqu'à leur aboutissement",
+        "Pack Office, outils de suivi et de reporting",
+        "FR / AR natifs, EN courant (TOEIC 915)",
     ],
     "key_account": [
-        "Portefeuille B2B à 360 k€/mois en autonomie",
-        "Cycle commercial complet (prospection -> closing)",
-        "HubSpot CRM, LinkedIn Sales Navigator",
-        "Negotiation Business School (certifié 2025)",
-        "Multilinguisme et adaptabilité culturelle",
+        "Développement et fidélisation d'un portefeuille clients",
+        "Prospection et développement commercial B2B",
+        "Identification du besoin et proposition de solutions",
+        "CRM : Salesforce (formation Coursera 2026)",
+        "FR / AR natifs, EN courant (TOEIC 915)",
     ],
     "business_dev": [
-        "Business development B2B (360 k€/mois)",
-        "Cycle commercial : prospection -> closing",
-        "HubSpot CRM, LinkedIn Sales Navigator",
-        "Negotiation Business School (certifié 2025)",
-        "Multilinguisme : FR / AR / EN / ES",
+        "Prospection et développement commercial B2B",
+        "Identification du besoin et proposition de solutions",
+        "Développement de partenariats",
+        "CRM : Salesforce (formation Coursera 2026)",
+        "FR / AR natifs, EN courant (TOEIC 915)",
     ],
     "sales": [
-        "Vente B2B et B2C premium (DEFI GROUPE + Printemps)",
-        "Dépassement régulier des objectifs commerciaux",
-        "Negotiation Business School (certifié 2025)",
-        "HubSpot CRM, LinkedIn Sales Navigator",
-        "Multilinguisme et relation client haut de gamme",
+        "Vente conseil premium (Printemps Haussmann)",
+        "Prospection et développement commercial B2B",
+        "Relation client et fidélisation",
+        "CRM : Salesforce (formation Coursera 2026)",
+        "FR / AR natifs, EN courant (TOEIC 915)",
     ],
     "hr": [
-        "Recrutement : 300+ candidats gérés en événements",
-        "Coordination POEI avec France Travail",
-        "Outils : Indeed, France Travail, LinkedIn",
-        "Animation d'événements et conduite d'entretiens",
-        "Habilitation SST (Croix-Rouge Française)",
+        "Sourcing, présélection et entretiens candidats",
+        "Analyse du besoin des entreprises",
+        "Suivi des recrutements jusqu'à leur aboutissement",
+        "Relation entreprises et candidats",
+        "Habilitation SST (Croix-Rouge française)",
     ],
     "generic": [
-        "Cycle commercial et négociation B2B",
-        "Gestion de projets internationaux (Lisbonne)",
-        "HubSpot CRM, LinkedIn Sales Navigator",
-        "Pack Office avancé et Google Suite",
-        "FR / EN / AR / ES / ZH",
+        "Prospection et développement commercial B2B",
+        "Relation client et fidélisation",
+        "Sourcing et suivi de candidats",
+        "Web : Wix/Velo, WordPress, HTML/CSS/JS",
+        "IA et automatisation",
     ],
 }
 
@@ -427,32 +498,24 @@ SKILLS_BY_ROLE = {
 LANGUAGES = [
     ("Français",  "Natif"),
     ("Arabe",     "Natif"),
-    ("Anglais",   "Courant"),
-    ("Espagnol",  "Intermédiaire"),
-    ("Chinois",   "Notions"),
+    ("Anglais",   "Courant - TOEIC 915/990"),
+    ("Espagnol",  "Notions"),
 ]
 
 
 # Outils que l'offre peut mentionner et qu'Amine pratique réellement. Hors de
 # cette liste, un outil de l'annonce n'entre PAS dans les compétences : un CV qui
-# revendique Salesforce sans y avoir touché se paie au premier entretien.
+# revendique un outil sans y avoir touché se paie au premier entretien.
+# HubSpot et Sales Navigator en sont sortis le 06/10/2026 : absents de son CV.
 TOOLS_HE_KNOWS = {
-    "hubspot":                 "HubSpot CRM",
-    "hubspot crm":             "HubSpot CRM",
-    "sales navigator":         "LinkedIn Sales Navigator",
-    "linkedin sales navigator":"LinkedIn Sales Navigator",
-    "excel":                   "Excel avancé (TCD, formules)",
-    "google sheets":           "Google Sheets",
-    "google analytics":        "Google Analytics",
-    "canva":                   "Canva",
-    "notion":                  "Notion",
-    "wix":                     "Wix",
-    "wordpress":               "WordPress",
-    "linkedin ads":            "LinkedIn (organique et sponsorisé)",
-    "tiktok":                  "TikTok, Instagram, LinkedIn (contenu)",
-    "teams":                   "Microsoft Teams",
-    "slack":                   "Slack",
-    "zoom":                    "Zoom",
+    "salesforce":  "CRM : Salesforce (formation Coursera 2026)",
+    "excel":       "Pack Office (Excel)",
+    "pack office": "Pack Office",
+    "wix":         "Wix/Velo",
+    "wordpress":   "WordPress",
+    "webflow":     "Webflow",
+    "html":        "HTML/CSS/JavaScript",
+    "javascript":  "HTML/CSS/JavaScript",
 }
 
 
@@ -551,8 +614,8 @@ def _dynamic_summary(role: str, offer: dict, analysis: dict) -> str:
 def _skills_for(role: str, analysis: dict) -> list:
     """Compétences du rôle, avec les outils de l'annonce remontés en tête.
 
-    Un ATS cherche ses propres mots. Si l'offre parle de HubSpot et qu'Amine
-    pratique HubSpot, la ligne doit être visible en haut — pas noyée en bas de
+    Un ATS cherche ses propres mots. Si l'offre parle de Salesforce et qu'Amine
+    s'y est formé, la ligne doit être visible en haut — pas noyée en bas de
     page comme avant, où les outils de l'annonce finissaient collés en minuscules
     à la fin d'une bande de texte (« ... | tmall, jd.com »).
     """
@@ -571,32 +634,27 @@ def _skills_for(role: str, analysis: dict) -> list:
 
 
 def _ordered_experiences(role: str, analysis: dict) -> list:
-    """Le poste en cours d'abord, puis l'ordre du rôle, puis le secteur.
+    """Les postes récents d'abord, puis l'ordre du rôle, puis le secteur.
 
     Deux règles apprises sur les PDF précédents :
 
-      * Le poste en cours ouvre le CV, toujours. `ROLE_PRIORITY` le reléguait en
-        quatrième position pour les rôles marketing — donc en bas de page, avec
-        deux bullets : son poste actuel à 360 k€/mois, celui qui porte le plus
-        de preuve, enterré sous un community management de 2023. Un recruteur
-        lit la première ligne comme « ce qu'il fait aujourd'hui ». La pertinence
-        réordonne le RESTE, pas ça.
-      * Le coup de pouce sectoriel ne remonte jamais jusqu'en tête, pour la même
-        raison : voir un job de 2024 au-dessus d'un « Sept. 2025 - aujourd'hui »
-        ne se lit pas comme un choix, ça se lit comme une erreur.
+      * Les postes les plus récents (PROMAN, DEFI GROUPE) ouvrent le CV,
+        toujours. Un recruteur lit la première ligne comme « ce qu'il a fait en
+        dernier » : voir un job de 2023 au-dessus d'un poste de 2026 ne se lit
+        pas comme un choix, ça se lit comme une erreur. La pertinence réordonne
+        le RESTE, pas ça.
+      * Le coup de pouce sectoriel ne remonte donc jamais au-dessus d'eux.
     """
-    order   = list(ROLE_PRIORITY.get(role, ROLE_PRIORITY["generic"]))
-    current = [e["id"] for e in EXPERIENCES if e.get("current")]
-
-    for exp_id in reversed(current):
-        if exp_id in order:
-            order.insert(0, order.pop(order.index(exp_id)))
+    order  = list(ROLE_PRIORITY.get(role, ROLE_PRIORITY["generic"]))
+    recent = {e["id"] for e in EXPERIENCES if e.get("recent")}
+    order  = [i for i in order if i in recent] + [i for i in order if i not in recent]
+    floor  = sum(1 for i in order if i in recent)
 
     boost = INDUSTRY_BOOST.get(analysis.get("industry", "generic"))
-    if boost and boost in order and boost not in current:
+    if boost and boost in order and boost not in recent:
         i = order.index(boost)
-        if i > 1:
-            order.insert(max(1, i - 1), order.pop(i))
+        if i > floor:
+            order.insert(max(floor, i - 1), order.pop(i))
     return order
 
 
@@ -788,9 +846,10 @@ class _CVPdf(FPDF):
         self.set_y(y + self.s(0.6))
 
         base = (
-            "CRM : HubSpot, LinkedIn Sales Navigator  |  Marketing : Canva, Notion, Wix  |  "
-            "Bureautique : Excel avancé, Google Suite  |  "
-            "Disponibilité : V.I.E. 2026 (juin/juillet)  |  Mobilité : permis B, remote OK"
+            "Web : HTML/CSS/JavaScript, Wix/Velo, WordPress, Webflow  |  "
+            "CRM : Salesforce (formation Coursera 2026)  |  Bureautique : Pack Office  |  "
+            "IA et automatisation  |  Disponibilité : immédiate  |  "
+            "Mobilité : permis B, prêt à partir à l'international"
         )
         self.set_x(14)
         self.set_font("Helvetica", "", self.s(8.4))
